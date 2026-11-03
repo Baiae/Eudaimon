@@ -1,0 +1,8 @@
+# Engine and campaign runtime artifacts (per docs/3, section 3.1)
+results.tsv
+.engine/
+AUDIT.md
+PROPOSALS.md
+ESCALATION.md
+__pycache__/
+*.pyc

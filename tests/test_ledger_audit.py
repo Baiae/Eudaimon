@@ -126,6 +126,17 @@ class LegacyLedgerAuditTests(unittest.TestCase):
         self.assertEqual(report["integrity_level"], "STRUCTURAL_ONLY_NOT_TAMPER_PROOF")
         self.assertEqual(ledger.read_bytes(), before)
 
+    def test_synthetic_legacy_fixture_is_valid_without_mutation(self):
+        """CI verifies legacy event shapes without publishing private history."""
+        ledger = Path(__file__).parent / "fixtures" / "legacy-synthetic.jsonl"
+        before = ledger.read_bytes()
+        report = audit_ledger(ledger)
+        self.assertEqual(report["records"], 6)
+        self.assertEqual(report["issues"], [])
+        self.assertEqual(report["pending_transactions"], [])
+        self.assertEqual(report["integrity_level"], "STRUCTURAL_ONLY_NOT_TAMPER_PROOF")
+        self.assertEqual(ledger.read_bytes(), before)
+
     def test_unrepresentably_large_score_is_reported_not_crashed(self):
         report = self._inspect([{
             "event": "baseline", "run_id": "run-1", "timestamp": "test",

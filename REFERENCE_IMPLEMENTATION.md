@@ -82,6 +82,15 @@ To run bounded tests:
 python3 -m unittest discover -s tests -v
 ```
 
+GitHub Actions runs the standard-library suite on Ubuntu and macOS (Python 3.12)
+for pull requests targeting `main` and for pushes to `main`. Its strict CI
+runner expects exactly **one intentional skip**: the read-only audit of the
+private historical campaign ledger, which is excluded from Git. Any unexpected
+skip or test failure fails CI. A committed **synthetic**, non-historical
+`tests/fixtures/legacy-synthetic.jsonl` fixture exercises the same structural
+auditor on both runners. CI does **not** certify the private ledger's authenticity;
+inspect local historical evidence separately and read-only when available.
+
 ## Campaign contract
 
 Each campaign has exactly one mutable target file, `program.md`, and a local

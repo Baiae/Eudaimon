@@ -1,0 +1,111 @@
+name: Reference engine CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# No repository writes, tokens, or deployment credentials required.
+permissions:
+  contents: read
+
+concurrency:
+  group: reference-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stdlib-tests:
+    name: stdlib tests / ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: "3.12"
+          - os: macos-15
+            python: "3.12"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Enforce historical-evidence exclusion
+        shell: bash
+        run: |
+          python -B - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          historical = Path("campaigns/rr_engine/.autoresearch/ledger.jsonl")
+          if historical.exists():
+              raise SystemExit("FAIL: private historical ledger must not be published")
+          tracked = subprocess.check_output(
+              ["git", "ls-files", "campaigns/rr_engine/.autoresearch/"],
+              text=True,
+          ).strip()
+          if tracked:
+              raise SystemExit("FAIL: runtime evidence is tracked: " + tracked)
+          print("PASS: historical campaign evidence excluded intentionally")
+          PY
+
+      - name: Run complete stdlib suite and verify expected skip
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          python -B - <<'PY'
+          import os
+          from pathlib import Path
+          import unittest
+
+          suite = unittest.defaultTestLoader.discover("tests")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          expected_test = (
+              "test_ledger_audit.LegacyLedgerAuditTests."
+              "test_legacy_campaign_is_structurally_valid_without_mutation"
+          )
+          expected_skips = {expected_test: "historical campaign evidence not available"}
+          actual_skips = {test.id(): reason for test, reason in result.skipped}
+
+          summary = (
+              f"### Eudaimon stdlib tests\n\n"
+              f"- Executed: {result.testsRun}\n"
+              f"- Failures: {len(result.failures)}\n"
+              f"- Errors: {len(result.errors)}\n"
+              f"- Expected skipped historical-evidence check: 1\n"
+              f"- Actual skips: {len(result.skipped)}\n"
+              f"- Synthetic legacy fixture: included in suite\n\n"
+              "Private campaign history is deliberately absent from GitHub. "
+              "The published tests cannot authenticate or audit that private ledger.\n"
+          )
+          path = os.environ.get("GITHUB_STEP_SUMMARY")
+          if path:
+              with Path(path).open("a", encoding="utf-8") as handle:
+                  handle.write(summary)
+          if not result.wasSuccessful():
+              raise SystemExit("FAIL: unittest errors or failures")
+          if actual_skips != expected_skips:
+              raise SystemExit(
+                  "FAIL: missing or unexpected skips; "
+                  f"expected={expected_skips!r} actual={actual_skips!r}"
+              )
+          print(
+              f"PASS: {result.testsRun - len(result.skipped)} tests passed, "
+              "1 intentional historical-evidence skip; no other skips"
+          )
+          PY
+
+      - name: Check synthetic ledger audit CLI
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -B tools/audit_ledger.py tests/fixtures/legacy-synthetic.jsonl

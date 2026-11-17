@@ -1,0 +1,27 @@
+{
+  "files": {
+    "1-architecture.md": {
+      "bytes": 5087,
+      "sha256": "7638841e72b68fd95fdd4fbae9c6e43553529e2aac3d32c1b6ad1dab83bfdd19"
+    },
+    "2-frameworks.md": {
+      "bytes": 8848,
+      "sha256": "8968a7c683fe4ca2ea35aba3cd5684ce702ab3c68256e7ccd20824ca96e8e2c5"
+    },
+    "3-autoresearch-w.md": {
+      "bytes": 10260,
+      "sha256": "effaa33c5f9524a773a36674956a1d24b77587db581181c641db642bd9e5d940"
+    },
+    "5-eval-runner.md": {
+      "bytes": 9205,
+      "sha256": "e79890baf9d0a20949c18de90f4570425523ebc6f8200675ffa8c1f32f4d1909"
+    },
+    "6-failure-modes.md": {
+      "bytes": 9202,
+      "sha256": "a3ee5f1df9c47b7c82113148320566d9ee7ccd46a9d6adfc1e9eed52c1f1fd65"
+    }
+  },
+  "source_commit": "9c464796a68ca19e565c7bdd5f764691a78616a4",
+  "source_repository": "Baiae/Eudaimon",
+  "status": "CONCEPTUAL_BLUEPRINT_NOT_IMPLEMENTATION_EVIDENCE"
+}

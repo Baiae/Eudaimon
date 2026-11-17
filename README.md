@@ -1,5 +1,17 @@
 # EUDAIMON: AGI+W Blueprint and AutoResearch-W Engine
 
+## Reference implementation update (2026-11-17)
+
+This branch preserves the original public AGI+W conceptual blueprint and its
+historical root-level sketches. A **separate, bounded and tested** local
+reference engine has been added under [engine/](engine/) and
+[campaigns/rr_engine/](campaigns/rr_engine/). See
+[REFERENCE_IMPLEMENTATION.md](REFERENCE_IMPLEMENTATION.md) for the current
+implementation contract, limitations, and tests. The older text below
+describes the historical design-only baseline, **not** the status of the
+new reference engine; no full AGI+W implementation is claimed.
+
+
 Design documents and an untested reference sketch for an AGI+W (Artificial General Intelligence + Wisdom) system whose self-improvement organ is a harness-agnostic AutoResearch engine (AutoResearch-W).
 
 **Status: design intent only.** Nothing here has been implemented, run, or measured. Code is an untested sketch. Mechanisms are functional analogues. The system is not claimed to be conscious or alive.

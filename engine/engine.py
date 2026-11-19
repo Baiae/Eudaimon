@@ -39,7 +39,7 @@ DOCKER_IMAGE = (
     "docker.io/library/python@sha256:"
     "593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c"
 )
-# Reviewed official Python 3.12.12 slim-bookworm multi-arch OCI index.
+# Selected official Python 3.12.12 slim-bookworm multi-arch OCI index.
 # Strict mode never pulls images automatically. Runtime digest requires approval
 # for each future update; a digest pin is not a container-escape guarantee.
 # Reviewed, bundled reference evaluator only. Updates require an explicit source review.

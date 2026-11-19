@@ -6,3 +6,10 @@ PROPOSALS.md
 ESCALATION.md
 __pycache__/
 *.pyc
+
+# Local reference engine runtime artifacts (not public evidence)
+.autoresearch/
+*.py[cod]
+.DS_Store
+campaigns/*/proposals/*
+!campaigns/*/proposals/.gitkeep

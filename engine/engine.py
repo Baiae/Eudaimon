@@ -363,6 +363,53 @@ class CampaignEngine:
             if snapshot_fd is not None:
                 os.close(snapshot_fd)
 
+    @staticmethod
+    def _terminate_evaluator_group(process: subprocess.Popen[bytes]) -> None:
+        """Kill the isolated evaluator group; fail closed if cleanup is uncertain.
+
+        Some macOS runners reject killpg despite allowing signals to the
+        individual members of the evaluator's dedicated process group.
+        """
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+            return
+        except ProcessLookupError:
+            return
+        except PermissionError:
+            try:
+                listing = subprocess.run(
+                    ["ps", "-e", "-o", "pid=", "-o", "pgid="],
+                    capture_output=True, text=True, check=True, timeout=5,
+                )
+            except (OSError, subprocess.SubprocessError) as exc:
+                raise EvaluationError(
+                    "cannot enumerate evaluator group after killpg permission denial"
+                ) from exc
+
+            members = []
+            for line in listing.stdout.splitlines():
+                fields = line.split()
+                if len(fields) != 2:
+                    raise EvaluationError("malformed evaluator process-group listing")
+                try:
+                    pid, pgid = map(int, fields)
+                except ValueError as exc:
+                    raise EvaluationError("malformed evaluator process-group listing") from exc
+                if pgid == process.pid:
+                    members.append(pid)
+
+            if not members and process.poll() is None:
+                raise EvaluationError("cannot locate live evaluator group after killpg permission denial")
+            for pid in members:
+                try:
+                    os.kill(pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                except OSError as exc:
+                    raise EvaluationError(f"cannot terminate evaluator group member {pid}") from exc
+        except OSError as exc:
+            raise EvaluationError("cannot terminate evaluator process group") from exc
+
     def _evaluate(self, candidate: Path) -> dict[str, Any]:
         # Recheck immediately before each spawn; the campaign is not race-proof.
         self._validate_evaluator_trust()
@@ -392,22 +439,30 @@ class CampaignEngine:
                     )
                 except OSError as exc:
                     raise EvaluationError("could not start evaluator with output limits") from exc
+                timed_out = False
                 try:
-                    try:
-                        returncode = process.wait(timeout=self.config.evaluator_timeout)
-                    except subprocess.TimeoutExpired as exc:
-                        os.killpg(process.pid, signal.SIGKILL)
-                        process.wait()
-                        raise EvaluationError(
-                            f"evaluator timeout after {self.config.evaluator_timeout}s"
-                        ) from exc
+                    returncode = process.wait(timeout=self.config.evaluator_timeout)
+                except subprocess.TimeoutExpired:
+                    timed_out = True
                 finally:
-                    # On successful exit a background descendant may remain;
-                    # terminate its process group before inspecting evidence.
+                    # An exited evaluator can leave background descendants.
+                    # Do not accept its evidence unless group cleanup succeeds.
                     try:
-                        os.killpg(process.pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
+                        self._terminate_evaluator_group(process)
+                    finally:
+                        if process.poll() is None:
+                            try:
+                                process.kill()
+                            except ProcessLookupError:
+                                pass
+                            try:
+                                process.wait(timeout=5)
+                            except subprocess.TimeoutExpired as exc:
+                                raise EvaluationError("evaluator did not exit after cleanup") from exc
+                if timed_out:
+                    raise EvaluationError(
+                        f"evaluator timeout after {self.config.evaluator_timeout}s"
+                    )
                 stdout_file.seek(0, os.SEEK_END)
                 stderr_file.seek(0, os.SEEK_END)
                 stdout_size, stderr_size = stdout_file.tell(), stderr_file.tell()

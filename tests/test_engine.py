@@ -525,6 +525,60 @@ time.sleep(60)
         status = subprocess_status(pid)
         self.assertIn(status, ('Z', 'X', None), f'descendant still running: {status}')
 
+    def test_timeout_kills_descendants_when_killpg_is_denied(self) -> None:
+        import os
+        import time
+        source = """
+import subprocess
+import sys
+import time
+from pathlib import Path
+child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
+(Path(__file__).parent / 'descendant.pid').write_text(str(child.pid))
+time.sleep(60)
+"""
+        engine, candidate = self._engine(source, timeout=0.8)
+        with patch("engine.engine.os.killpg", side_effect=PermissionError(1, "not permitted")):
+            with self.assertRaisesRegex(EvaluationError, "timeout"):
+                engine._evaluate(candidate)
+        pid = int((engine.campaign / 'descendant.pid').read_text())
+        time.sleep(0.1)
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return
+        self.assertIn(subprocess_status(pid), ('Z', 'X', None))
+
+    def test_successful_evaluator_cleans_descendants_when_killpg_is_denied(self) -> None:
+        import os
+        import time
+        source = """
+import subprocess
+import sys
+from pathlib import Path
+child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
+(Path(__file__).parent / 'descendant.pid').write_text(str(child.pid))
+print('{"protect_pass": true, "score": 1}')
+"""
+        engine, candidate = self._engine(source)
+        with patch("engine.engine.os.killpg", side_effect=PermissionError(1, "not permitted")):
+            result = engine._evaluate(candidate)
+        self.assertTrue(result["protect_pass"])
+        pid = int((engine.campaign / 'descendant.pid').read_text())
+        time.sleep(0.1)
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return
+        self.assertIn(subprocess_status(pid), ('Z', 'X', None))
+
+    def test_permission_denied_without_group_listing_fails_closed(self) -> None:
+        engine, candidate = self._engine("print('{\"protect_pass\": true, \"score\": 1}')")
+        with patch("engine.engine.os.killpg", side_effect=PermissionError(1, "not permitted")):
+            with patch("engine.engine.subprocess.run", side_effect=OSError("ps unavailable")):
+                with self.assertRaisesRegex(EvaluationError, "cannot enumerate evaluator group"):
+                    engine._evaluate(candidate)
+
 
 def subprocess_status(pid: int) -> str | None:
     import subprocess

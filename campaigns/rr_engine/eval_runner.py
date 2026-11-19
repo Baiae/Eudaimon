@@ -4,11 +4,21 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
-import sys
 from pathlib import Path
 
-from rr_policy import evaluate_file
+
+def _reviewed_policy_evaluator():
+    # -I removes the campaign from sys.path; load the separately pinned policy
+    # by its exact file path, never via a shadowable package/module name.
+    policy_path = Path(__file__).with_name("rr_policy.py")
+    spec = importlib.util.spec_from_file_location("_eudaimon_reviewed_policy", policy_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("reviewed evaluator policy is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.evaluate_file
 
 
 def main() -> int:
@@ -19,7 +29,7 @@ def main() -> int:
         print(json.dumps({"error": "candidate_not_found"}))
         return 2
     try:
-        result = evaluate_file(args.candidate)
+        result = _reviewed_policy_evaluator()(args.candidate)
     except (OSError, UnicodeError) as exc:
         print(json.dumps({"error": "candidate_read_failed", "detail": str(exc)}))
         return 2

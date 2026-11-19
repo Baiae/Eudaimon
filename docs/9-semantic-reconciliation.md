@@ -72,3 +72,17 @@ Only the additive conceptual snapshot and README authority clarification have be
 Local regression suite: **76 passing tests** after targeted safety hardening on 2026-11-17. These tests verify the constrained reference implementation, not the full public blueprint. Existing campaign ledger: 24 structurally valid records, no pending promotion transactions, no cryptographic authentication. No real campaign was run and no Git commits, remotes, or pushes were made.
 
 **Stop/go gate:** D1 remains approved; the narrow D5 *local reference-engine trust restriction* is implemented. D2–D4 and any broader evaluator/security policy remain open. No publication, ledger migration, untrusted execution, or silent change to architectural contracts is authorized. Future reference-engine hardening does not implement the full conceptual blueprint.
+
+## 7. Conceptual workflow erratum (2026-11-19, non-canonical)
+
+The immutable public conceptual snapshot in spec/conceptual/3-autoresearch-w.md
+places output validation/reset before the guard. That ordering could erase
+evidence of an out-of-scope campaign-file modification when the harness also
+returns malformed output. The safe future implementation order is: harness
+returns, guard checks all protected files, breach triggers mandatory halt,
+and only then may invalid output be reset/discarded.
+
+This is an explicit proposed erratum, NOT a silent amendment to the canonical
+conceptual blueprint. The original snapshot and its SHA-256 manifest remain
+unchanged. A future authorized conceptual revision can adopt the correction
+without rewriting historical source provenance.

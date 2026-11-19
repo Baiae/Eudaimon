@@ -33,6 +33,17 @@ re-pinned. Custom evaluator approval is available to programmatic callers via
 sandbox. A same-user attacker can still race filesystem operations, and memory,
 filesystem, and network isolation are not provided. Do not run untrusted code.
 The legacy ledger audit is **structural-only**, not cryptographic authentication.
+
+The bundled Python evaluator is launched with isolated import mode (-I) and
+loads its separately pinned policy by exact file path. This reduces accidental
+or malicious campaign-local module shadowing; it does not sandbox same-user
+filesystem, network, or process access. Unsafe candidate Protect Gate results
+halt the campaign. A promotion intent binds its configured target path and
+evaluated incumbent digest. Pending legacy intents without target identity
+require operator review instead of automatic recovery. Directory syncs for
+new state and ledger entries are mandatory before promotion on supported
+filesystems; unsupported syncs fail closed. Older ledger events remain
+readable and are never silently rewritten.
 No implementation of the full AGI+W blueprint is claimed.
 
 ## Repository layout

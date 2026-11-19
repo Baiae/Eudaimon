@@ -21,7 +21,7 @@ out of scope for this first reference.
 The engine invokes:
 
 ```bash
-python3 eval_runner.py --candidate /absolute/path/to/candidate
+python3 -I -B eval_runner.py --candidate /absolute/path/to/candidate
 ```
 
 The evaluator must write one JSON object to stdout:
@@ -52,7 +52,8 @@ Results are ordered lexicographically:
 
 A candidate that fails the Protect Gate cannot win by reporting a high score.
 An evaluator failure or malformed result is an ambiguity and stops the run
-without promotion.
+without promotion. A proposal that fails the Protect Gate also halts the run,
+even if subsequent proposals would pass.
 
 ## Campaign lifecycle
 
@@ -62,8 +63,8 @@ without promotion.
 4. Enumerate proposal files in stable lexical order.
 5. Evaluate each proposal, compare it with the current best, and promote only
    a strict improvement.
-6. Halt on evaluator error, iteration budget, no-proposal exhaustion, or the
-   configured no-improvement limit.
+6. Halt on a failed candidate Protect Gate, evaluator error, iteration budget,
+   no-proposal exhaustion, or the configured no-improvement limit.
 7. Append a terminal decision and release the lock.
 
 ## Adapters

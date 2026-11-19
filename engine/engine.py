@@ -35,7 +35,7 @@ DEFAULT_EVALUATOR_TIMEOUT = 30.0
 MAX_EVALUATOR_OUTPUT_BYTES = 65_536
 # Reviewed, bundled reference evaluator only. Updates require an explicit source review.
 # This is an integrity pin, NOT a sandbox or an authentication mechanism.
-TRUSTED_REFERENCE_EVALUATOR_SHA256 = "0b8e23102ec222e6f1a711e65e600bbd3585bded1aea8a322904cbbbb693dd85"
+TRUSTED_REFERENCE_EVALUATOR_SHA256 = "dbad5763e68b66c40dbfd852ea80ca041ffa0811c788bdcadc13ee0e5095cff5"
 TRUSTED_REFERENCE_POLICY_SHA256 = "bc6c31a850e7a99723eb96d94098591d8ade287ff6c765b3ebff60d5a2db4b37"
 
 
@@ -81,6 +81,12 @@ def validate_evaluation(payload: Any) -> dict[str, Any]:
     result["score"] = float(payload["score"])
     if "components" in result and not isinstance(result["components"], dict):
         raise EvaluationError("components must be an object when present")
+    # json.loads permits NaN/Infinity and huge exponents can become infinity.
+    # Reject non-finite numbers at every depth before writing any ledger event.
+    try:
+        json.dumps(result, allow_nan=False)
+    except (ValueError, TypeError, OverflowError) as exc:
+        raise EvaluationError("evaluator output contains non-finite or invalid JSON values") from exc
     return result
 
 
@@ -301,8 +307,16 @@ class CampaignEngine:
         if self.config.evaluator_timeout <= 0:
             raise EngineError("evaluator_timeout must be positive")
 
-    def _write_state(self, state: dict[str, Any]) -> None:
+    def _ensure_state_dir(self) -> None:
+        created = not self.state_dir.exists()
         self.state_dir.mkdir(parents=True, exist_ok=True)
+        self._validate_path_components(self.state_dir, self.campaign, "state directory", "directory")
+        if created:
+            # Persist the newly created directory entry before any promotion.
+            self._fsync_directory(self.campaign, required=True)
+
+    def _write_state(self, state: dict[str, Any]) -> None:
+        self._ensure_state_dir()
         fd, temp_name = tempfile.mkstemp(prefix=".state.", dir=self.state_dir)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
@@ -311,16 +325,21 @@ class CampaignEngine:
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(temp_name, self.state_path)
+            self._fsync_directory(self.state_dir, required=True)
         finally:
             Path(temp_name).unlink(missing_ok=True)
 
     def _append_ledger(self, event: dict[str, Any]) -> None:
-        self.state_dir.mkdir(parents=True, exist_ok=True)
+        self._ensure_state_dir()
+        created = not self.ledger.exists()
         with self.ledger.open("a", encoding="utf-8") as handle:
-            json.dump(event, handle, sort_keys=True)
+            json.dump(event, handle, sort_keys=True, allow_nan=False)
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
+        if created:
+            # fsync(file) does not persist a newly created directory entry.
+            self._fsync_directory(self.state_dir, required=True)
 
     def _create_evaluation_snapshot(self, candidate: Path) -> tuple[Path, str, int]:
         flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
@@ -418,6 +437,7 @@ class CampaignEngine:
         try:
             command = [
                 sys.executable,
+                "-I", "-B",  # no campaign-local import search path or bytecode writes
                 str(self.evaluator),
                 "--candidate",
                 str(snapshot),
@@ -491,19 +511,17 @@ class CampaignEngine:
         finally:
             snapshot.unlink(missing_ok=True)
 
-    def _fsync_directory(self, directory: Path) -> None:
+    def _fsync_directory(self, directory: Path, *, required: bool = False) -> None:
         try:
             fd = os.open(directory, os.O_RDONLY)
-        except OSError:
-            return
-        try:
             try:
                 os.fsync(fd)
-            except OSError:
-                # Some filesystems/platforms do not support directory fsync.
-                pass
-        finally:
-            os.close(fd)
+            finally:
+                os.close(fd)
+        except OSError as exc:
+            if required:
+                raise EngineError(f"cannot durably synchronize directory: {directory}") from exc
+            # Post-replace fsync is best effort on filesystems that reject it.
 
     def _promote(self, candidate: Path, expected_sha256: str, expected_old_sha256: str) -> None:
         source_mode = stat.S_IMODE(self.target.stat().st_mode)
@@ -593,6 +611,12 @@ class CampaignEngine:
             candidate_digest = intent["candidate_sha256"]
             if old_digest == candidate_digest:
                 raise EngineError(f"promotion transaction {transaction_id} is ambiguous; operator review required")
+            # The intent must identify the exact configured target. Older
+            # target-less pending intents cannot safely be recovered automatically.
+            if intent.get("target") != self.config.target:
+                raise EngineError(
+                    f"promotion transaction {transaction_id} target identity missing or mismatched; operator review required"
+                )
             current_digest = sha256_file(self.target)
             common = {
                 "event": "promotion_recovered_commit" if current_digest == candidate_digest else "promotion_recovered_abort",
@@ -650,7 +674,7 @@ class CampaignEngine:
 
     def run(self) -> RunResult:
         self._validate_campaign()
-        self.state_dir.mkdir(parents=True, exist_ok=True)
+        self._ensure_state_dir()
         run_id = uuid.uuid4().hex
         lock = RunLock(self.state_dir / "run.lock", run_id)
         lock.acquire()
@@ -670,7 +694,7 @@ class CampaignEngine:
             self._write_state(state)
             try:
                 baseline = self._evaluate(self.target)
-            except EvaluationError as exc:
+            except EngineError as exc:
                 state["error"] = str(exc)
                 self._append_ledger(
                     {"event": "evaluation_error", "run_id": run_id, "candidate": self.config.target, "error": str(exc), "timestamp": utc_now()}
@@ -696,7 +720,7 @@ class CampaignEngine:
                 state["iterations"] += 1
                 try:
                     evaluation = self._evaluate(candidate)
-                except EvaluationError as exc:
+                except EngineError as exc:
                     state["error"] = str(exc)
                     self._append_ledger(
                         {"event": "evaluation_error", "run_id": run_id, "iteration": state["iterations"], "candidate": candidate.name, "error": str(exc), "timestamp": utc_now()}
@@ -714,13 +738,18 @@ class CampaignEngine:
                     "timestamp": utc_now(),
                 }
                 if improved:
+                    # The score comparison is valid only for the incumbent bytes
+                    # that were evaluated, not a target changed in the meantime.
+                    if sha256_file(self.target) != best["candidate_sha256"]:
+                        return self._halt(run_id, state, "incumbent_changed_since_evaluation", 2)
                     transaction_id = uuid.uuid4().hex
-                    old_digest = sha256_file(self.target)
+                    old_digest = best["candidate_sha256"]
                     intent = {
                         "event": "promotion_intent",
                         "transaction_id": transaction_id,
                         "run_id": run_id,
                         "candidate": candidate.name,
+                        "target": self.config.target,
                         "old_target_sha256": old_digest,
                         "candidate_sha256": evaluation["candidate_sha256"],
                         "phase": "intent_durable",
@@ -749,6 +778,8 @@ class CampaignEngine:
                 state["no_improvement"] = no_improvement
                 self._append_ledger(event)
                 self._write_state(state)
+                if not evaluation["protect_pass"]:
+                    return self._halt(run_id, state, "candidate_protect_failed", 3)
                 if no_improvement >= self.config.max_no_improvement:
                     return self._halt(run_id, state, "no_improvement_limit", 0)
 

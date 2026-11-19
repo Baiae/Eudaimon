@@ -48,6 +48,7 @@ class SafetyFaultTests(unittest.TestCase):
         engine._append_ledger({
             "event": "promotion_intent", "transaction_id": "tx-1",
             "run_id": "run-1", "timestamp": "test",
+            "target": engine.config.target,
             "old_target_sha256": hashlib.sha256(b"BASELINE").hexdigest(),
             "candidate_sha256": hashlib.sha256(b"BETTER").hexdigest(),
         })

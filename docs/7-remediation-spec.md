@@ -162,7 +162,7 @@ A remediation item is complete only when:
 **Remaining boundary:** these checks reduce accidental and straightforward symlink/path escapes, but they do not eliminate time-of-check/time-of-use races if another process can modify the campaign tree concurrently. The engine is still not a security sandbox.
 
 
-### R3 — COMPLETE
+### R3 — PARTIAL
 
 - Added an engine-created candidate snapshot in the system temporary directory.
 - Candidate bytes are streamed once into the snapshot while SHA-256 and byte count are computed from those exact bytes.
@@ -236,3 +236,33 @@ A remediation item is complete only when:
 - **Verification:** PYTHONDONTWRITEBYTECODE=1 python3 -B -m unittest discover -s tests -q — **76 tests passed**. Read-only audit of existing legacy evidence: **24 records, 0 pending transactions, 0 reported structural issues**, with unchanged bytes. No real campaign execution, Git commit, push, remote configuration, cleanup, install, or publication performed.
 
 **Explicit remaining limitations:** This is **not a true sandbox**. The evaluator retains same-user filesystem/network/process access; memory isolation is not established; filesystem/pathname checks are still vulnerable to malicious concurrent substitution, and the programmatic pin override does not confer independent trust. A SHA-256 pin detects changes relative to a chosen trusted value, but is not a code signature or provenance proof. The legacy ledger has no authenticated origin, hash chain, external anchor, or signatures, so structural validity cannot establish historical authenticity or detect coherent adversarial rewrites. Ledger v2/migration, broader R5 isolation, remaining design choices D2–D4 and R8–R9 publication/reconciliation remain separate stop/go decisions.
+
+### 2026-11-19 — PR #1 merge-gate hardening (reference only)
+
+- **Evaluator import isolation:** Python -I -B and exact-path import of the
+  independently SHA-256-pinned rr_policy.py; no campaign-local package
+  shadowing through sys.path. Re-reviewed evaluator pin updated.
+- **Protect Gate:** candidate protect_pass=false now records the rejection and
+  a terminal halt, without evaluating subsequent proposals.
+- **Evaluator failures:** EngineError at baseline and candidate evaluation
+  sites now records terminal state and an evaluation_error ledger event.
+- **Evidence integrity:** all nested non-finite JSON values are rejected before
+  ledger persistence; read-only ledger audit requires a successful promotion
+  commit, not a recovered abort, to validate a promoted-candidate event.
+- **Promotion and recovery:** the incumbent digest must match the evaluated
+  best digest before intent; each new intent binds its configured target path.
+  Pending legacy target-less intents and changed-target recovery fail closed
+  for operator review; historical evidence is never rewritten.
+- **Durability:** creation of the state directory and ledger now requires
+  directory fsync before promotion, with injected-failure tests. Post-replace
+  target-directory sync remains best effort where unsupported; the engine is
+  not a crash-proof transactional database.
+- **Canonical blueprint:** the original spec/conceptual snapshot and source
+  manifest are deliberately unchanged. The conceptual guard-order problem
+  is recorded as a proposed non-canonical erratum in
+  docs/9-semantic-reconciliation.md; a canonical change requires approval.
+- **R3 remains PARTIAL:** read-only snapshots are not immutable against a
+  malicious same-user evaluator. -I prevents import shadowing, not arbitrary
+  filesystem/process/network access. Do not execute untrusted evaluators.
+- All new tests use ephemeral fixtures. No private campaign evidence or
+  historical ledger has been modified or published.

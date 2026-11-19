@@ -58,6 +58,7 @@ def audit_ledger(path: Path) -> dict[str, object]:
         issues.append("last record is not newline-terminated (possible partial write)")
     intents: dict[str, dict] = {}
     completed: set[str] = set()
+    successful: set[str] = set()
     seen_transaction_ids: set[str] = set()
     events = 0
 
@@ -120,8 +121,8 @@ def audit_ledger(path: Path) -> dict[str, object]:
                 issues.append(f"line {number}: invalid candidate decision")
             if decision == "promoted":
                 tid = record.get("transaction_id")
-                if not _nonempty(tid) or tid not in completed:
-                    issues.append(f"line {number}: promoted candidate without completed transaction")
+                if not _nonempty(tid) or tid not in successful:
+                    issues.append(f"line {number}: promoted candidate without successful promotion transaction")
                 elif intents[tid].get("run_id") != record.get("run_id"):
                     issues.append(f"line {number}: promoted candidate references another run")
                 elif (isinstance(record.get("evaluation"), dict)
@@ -157,6 +158,10 @@ def audit_ledger(path: Path) -> dict[str, object]:
                 if not _digest(record.get(field)) or record.get(field) != expected:
                     issues.append(f"line {number}: {field} does not match intent digest")
                 completed.add(tid)
+                if (kind in ("promotion_commit", "promotion_recovered_commit")
+                        and record.get("run_id") == intent.get("run_id")
+                        and _digest(record.get(field)) and record[field] == expected):
+                    successful.add(tid)
 
     return {
         "records": events,

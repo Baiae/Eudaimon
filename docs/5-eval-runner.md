@@ -6,7 +6,7 @@ The example policy computes several bounded component scores and combines them
 with a geometric mean:
 
 ```text
-S = (contract * safety * traceability * held_out) ** 1/4
+S = (contract * safety * traceability * held_out) ** (1/4)
 ```
 
 Any zero component produces `S=0`. This is a toy document-contract metric;

@@ -56,7 +56,7 @@ class EngineContractTests(unittest.TestCase):
         (root / "eval_runner.py").write_text(evaluator_source, encoding="utf-8")
         return root
 
-    def test_promotes_only_strict_protected_improvement(self) -> None:
+    def test_unsafe_candidate_halts_before_later_safe_proposal(self) -> None:
         evaluator = """
 import json
 import sys
@@ -76,18 +76,14 @@ print(json.dumps({'protect_pass': protect, 'score': score, 'components': {}}))
 
         result = CampaignEngine(approved_config(root, max_no_improvement=5)).run()
 
-        self.assertEqual(result.exit_code, 0)
-        self.assertEqual(result.reason, "proposal_exhausted")
-        self.assertEqual((root / "program.md").read_text(encoding="utf-8"), "GOOD")
+        self.assertEqual(result.exit_code, 3)
+        self.assertEqual(result.reason, "candidate_protect_failed")
+        self.assertEqual((root / "program.md").read_text(encoding="utf-8"), "BASELINE")
         events = [json.loads(line) for line in (root / ".autoresearch" / "ledger.jsonl").read_text().splitlines()]
         decisions = [event["decision"] for event in events if event["event"] == "candidate"]
-        self.assertEqual(decisions, ["rejected", "promoted"])
-        intents = [event for event in events if event["event"] == "promotion_intent"]
-        commits = [event for event in events if event["event"] == "promotion_commit"]
-        self.assertEqual(len(intents), 1)
-        self.assertEqual(len(commits), 1)
-        self.assertEqual(intents[0]["transaction_id"], commits[0]["transaction_id"])
-        self.assertEqual(commits[0]["target_sha256"], hashlib.sha256(b"GOOD").hexdigest())
+        self.assertEqual(decisions, ["rejected"])
+        self.assertFalse(any(event["event"] == "promotion_intent" for event in events))
+        self.assertEqual(events[-1]["reason"], "candidate_protect_failed")
         self.assertFalse((root / ".autoresearch" / "run.lock").exists())
 
     def test_evaluator_error_halts_without_promotion(self) -> None:
@@ -344,6 +340,7 @@ class PromotionTransactionTests(unittest.TestCase):
             "event": "promotion_intent",
             "transaction_id": transaction_id,
             "run_id": "interrupted-run",
+            "target": engine.config.target,
             "old_target_sha256": hashlib.sha256(old).hexdigest(),
             "candidate_sha256": hashlib.sha256(candidate).hexdigest(),
             "timestamp": "test",

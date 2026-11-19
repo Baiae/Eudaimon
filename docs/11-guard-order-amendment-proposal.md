@@ -92,3 +92,12 @@ If the owner approves this amendment:
 **Decision D7 (open):** Approve this guard-first conceptual amendment and
 the additive versioning protocol. Until then, this document is a proposal,
 not a change to the authoritative blueprint.
+
+## 5. Decision disposition (2026-11-19)
+
+**D7 APPROVED:** The project owner authorized the guard-first conceptual
+amendment and additive versioning protocol. The normative, versioned text
+is now `spec/amendments/A-001-guard-before-reset.md`; its authority is
+recorded in `spec/ARCHITECTURAL_AUTHORITY.md`. The historical snapshot
+and SHA-256 manifest remain unchanged. No proposer harness is implemented
+or certified by this decision.

@@ -31,3 +31,11 @@ The first real Linux integration run (https://github.com/Baiae/Eudaimon/actions/
 4. Explicitly approve production security posture and merge PR #5. Until then, the PR remains **draft**.
 
 **Interpretation:** Linux synthetic integration evidence is positive; it is not a proof of sandbox security, protection against kernel/daemon compromise, or production approval.
+
+## Extended ARM64 Linux matrix (2026-11-19)
+
+- **Commit:** `4714093230da78c84d5f6c0779c50e3e45d9342f`.
+- **Docker CI:** https://github.com/Baiae/Eudaimon/actions/runs/44658694617 — both `ubuntu-latest` (Linux amd64) and `ubuntu-24.04-arm` (Linux ARM64) completed successfully, running the same four real Docker integration tests with the exact pinned OCI index digest and inspecting actual container isolation settings.
+- **Reference CI:** https://github.com/Baiae/Eudaimon/actions/runs/44658694511 — 105 stdlib tests, with 104 expected passes and one intentional private-history skip, on both Ubuntu and macOS runners (verify individual job conclusions before claiming final success).
+- The engine additionally refuses `DOCKER_HOST` overrides and non-Unix Docker contexts, preventing unintended remote-daemon execution. Two new unit tests verify fail-closed rejection.
+- **Linux ARM64 success does not substitute for Docker Desktop on macOS**; macOS Docker file-sharing and UID mapping still require independent runtime verification.

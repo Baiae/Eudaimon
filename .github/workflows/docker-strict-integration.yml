@@ -18,9 +18,17 @@ concurrency:
 
 jobs:
   docker-integration:
-    name: Ubuntu Docker / pinned image / synthetic tests
-    runs-on: ubuntu-latest
+    name: Docker / ${{ matrix.os }} / pinned image / synthetic tests
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux/amd64
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -36,7 +44,7 @@ jobs:
           set -euo pipefail
           docker info --format 'Docker server: {{.ServerVersion}}; architecture: {{.Architecture}}'
           image='docker.io/library/python@sha256:593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c'
-          docker pull --platform linux/amd64 "$image"
+          docker pull --platform ${{ matrix.platform }} "$image"
           docker image inspect "$image" --format 'Image ID: {{.Id}}; architecture: {{.Architecture}}'
 
       - name: Run synthetic Docker isolation and promotion tests

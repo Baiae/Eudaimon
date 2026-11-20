@@ -73,6 +73,34 @@ class DockerStrictIntegrationTests(unittest.TestCase):
         self.assertEqual((self.root / "program.md").read_text(), original)
         self.assertEqual(len([e for e in self._events() if e["event"] == "promotion_commit"]), 1)
 
+    def test_forced_timeout_removes_live_container_and_descendants(self):
+        # A synthetic sleeping process must not survive an evaluator timeout.
+        # This checks Docker kill/removal behavior, not only mocked CLI calls.
+        name = "eudaimon-synthetic-probe-" + uuid.uuid4().hex
+        command = [
+            "create", "--pull=never", "--name", name, "--network", "none",
+            "--read-only", "--cap-drop", "ALL",
+            "--security-opt", "no-new-privileges", "--pids-limit", "32",
+            "--memory", "256m", "--cpus", "1",
+            "--user", f"{os.getuid()}:{os.getgid()}",
+            "--entrypoint", "python3", DOCKER_IMAGE, "-I", "-B", "-c",
+            "import time; time.sleep(60)",
+        ]
+        try:
+            creation = docker(*command)
+            self.assertEqual(creation.returncode, 0, creation.stderr)
+            with self.assertRaises(subprocess.TimeoutExpired):
+                docker("start", "-a", name, timeout=2)
+        finally:
+            removal = docker("rm", "-f", name, timeout=15)
+            self.assertEqual(removal.returncode, 0, removal.stderr)
+            inspection = docker("inspect", name)
+            self.assertNotEqual(inspection.returncode, 0)
+            self.assertIn("no such", inspection.stderr.casefold())
+        self.assertEqual(
+            docker("ps", "-aq", "--filter", f"name={name}").stdout.strip(), ""
+        )
+
     def test_synthetic_container_cannot_read_host_secret_write_host_or_network(self):
         # Test the exact Docker security flags independently of the pinned
         # reference evaluator; no arbitrary code is routed through Eudaimon.

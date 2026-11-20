@@ -110,6 +110,23 @@ class DockerStrictIntegrationTests(unittest.TestCase):
         try:
             creation = docker(*cmd)
             self.assertEqual(creation.returncode, 0, creation.stderr)
+            host_config = docker("inspect", "--format", "{{json .HostConfig}}", name)
+            self.assertEqual(host_config.returncode, 0, host_config.stderr)
+            limits = json.loads(host_config.stdout)
+            self.assertTrue(limits["ReadonlyRootfs"])
+            self.assertEqual(limits["NetworkMode"], "none")
+            self.assertIn("ALL", limits["CapDrop"])
+            self.assertIn("no-new-privileges", limits["SecurityOpt"])
+            self.assertEqual(limits["Memory"], 256 * 1024 * 1024)
+            self.assertEqual(limits["NanoCpus"], 1_000_000_000)
+            self.assertEqual(limits["PidsLimit"], 32)
+            mounts_probe = docker("inspect", "--format", "{{json .Mounts}}", name)
+            self.assertEqual(mounts_probe.returncode, 0, mounts_probe.stderr)
+            mounts = json.loads(mounts_probe.stdout)
+            self.assertEqual(
+                {m["Destination"] for m in mounts}, {"/probe.py", "/candidate.txt"}
+            )
+            self.assertTrue(all(m["RW"] is False for m in mounts))
             execution = docker("start", "-a", name, timeout=15)
             self.assertEqual(execution.returncode, 0, execution.stderr)
             result = json.loads(execution.stdout.strip().splitlines()[-1])

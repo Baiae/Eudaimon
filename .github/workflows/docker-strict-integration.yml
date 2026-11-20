@@ -47,26 +47,6 @@ jobs:
           docker pull --platform ${{ matrix.platform }} "$image"
           docker image inspect "$image" --format 'Image ID: {{.Id}}; architecture: {{.Architecture}}'
 
-      - name: Export verified ARM64 image for Mac runtime validation
-        if: matrix.platform == 'linux/arm64'
-        shell: bash
-        run: |
-          set -euo pipefail
-          image='docker.io/library/python@sha256:593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c'
-          docker save "$image" | gzip -1 > "$RUNNER_TEMP/eudaimon-python-arm64.tar.gz"
-          cd "$RUNNER_TEMP"
-          sha256sum eudaimon-python-arm64.tar.gz > eudaimon-python-arm64.tar.gz.sha256
-
-      - name: Upload temporary pinned ARM64 image artifact
-        if: matrix.platform == 'linux/arm64'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: eudaimon-pinned-python-arm64
-          path: |
-            ${{ runner.temp }}/eudaimon-python-arm64.tar.gz
-            ${{ runner.temp }}/eudaimon-python-arm64.tar.gz.sha256
-          retention-days: 1
-
       - name: Run synthetic Docker isolation and promotion tests
         shell: bash
         env:

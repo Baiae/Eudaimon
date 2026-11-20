@@ -729,9 +729,13 @@ class CampaignEngine:
                     raise EvaluationError(
                         "docker-strict cleanup unverified; container may remain"
                     ) from exc
+                # Docker 29 emits lowercase "no such object"; older engines
+                # use "No such object". Accept only the specific not-found
+                # result, never an arbitrary inspect error.
+                probe_error = probe.stderr.casefold()
                 absent = (
                     probe.returncode != 0
-                    and ("No such object" in probe.stderr or "No such container" in probe.stderr)
+                    and ("no such object" in probe_error or "no such container" in probe_error)
                 )
                 if created and (removal.returncode != 0 or not absent):
                     raise EvaluationError(

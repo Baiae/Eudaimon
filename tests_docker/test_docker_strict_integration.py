@@ -122,7 +122,7 @@ class DockerStrictIntegrationTests(unittest.TestCase):
             removal = docker("rm", "-f", name)
             inspection = docker("inspect", name)
             self.assertNotEqual(inspection.returncode, 0)
-            self.assertIn("No such", inspection.stderr)
+            self.assertIn("no such", inspection.stderr.casefold())
 
 
 if __name__ == "__main__":

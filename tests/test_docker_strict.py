@@ -82,7 +82,7 @@ class StrictBackendContractTests(unittest.TestCase):
             if command[1] == "rm":
                 return subprocess.CompletedProcess(command, 1, stdout="", stderr="No such container")
             if command[1] == "inspect":
-                return subprocess.CompletedProcess(command, 1, stdout="", stderr="No such object")
+                return subprocess.CompletedProcess(command, 1, stdout="", stderr="error: no such object")
             raise AssertionError(command)
         with patch("engine.engine.shutil.which", return_value="/usr/local/bin/docker"), \
              patch("engine.engine.subprocess.run", side_effect=run):

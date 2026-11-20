@@ -758,7 +758,9 @@ class CampaignEngine:
                     probe.returncode != 0
                     and ("no such object" in probe_error or "no such container" in probe_error)
                 )
-                if created and (removal.returncode != 0 or not absent):
+                # Docker create may fail after allocating a container.
+                # Require verified absence even without a successful response.
+                if not absent or (created and removal.returncode != 0):
                     raise EvaluationError(
                         "docker-strict cleanup failed or unverified; container may remain"
                     )

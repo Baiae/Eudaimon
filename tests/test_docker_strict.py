@@ -138,6 +138,33 @@ class StrictBackendContractTests(unittest.TestCase):
         self.assertFalse(any(str(self.root) == m.split(",src=")[1].split(",")[0] for m in mounts))
         self.assertFalse(any(c[1] == "pull" for c in calls))
 
+    def test_failed_create_with_unverified_cleanup_fails_closed(self):
+        calls = []
+        def run(command, **kwargs):
+            calls.append(command)
+            if command[1:3] == ["context", "inspect"]:
+                return subprocess.CompletedProcess(
+                    command, 0, stdout="unix:///var/run/docker.sock\n", stderr=""
+                )
+            if command[1:3] == ["image", "inspect"]:
+                return subprocess.CompletedProcess(command, 0, stdout=b"[]", stderr=b"")
+            if command[1] == "create":
+                return subprocess.CompletedProcess(command, 1, stdout="", stderr="connection lost")
+            if command[1] == "rm":
+                return subprocess.CompletedProcess(command, 1, stdout="", stderr="daemon unavailable")
+            if command[1] == "inspect":
+                return subprocess.CompletedProcess(command, 1, stdout="", stderr="daemon unavailable")
+            raise AssertionError(command)
+        with patch("engine.engine.shutil.which", return_value="/usr/local/bin/docker"), \
+             patch("engine.engine.subprocess.run", side_effect=run):
+            result = self.engine.run()
+        self.assertEqual(result.reason, "baseline_evaluation_error")
+        events = [json.loads(x) for x in self.engine.ledger.read_text().splitlines()]
+        self.assertTrue(any("cleanup failed or unverified" in e.get("error", "")
+                            for e in events))
+        self.assertTrue(any(c[1] == "rm" for c in calls))
+        self.assertFalse(any(e["event"] == "baseline" for e in events))
+
     def test_failed_start_still_removes_container(self):
         calls = []
         def run(command, **kwargs):

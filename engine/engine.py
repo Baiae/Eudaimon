@@ -15,6 +15,7 @@ import math
 import os
 import signal
 import resource
+import shutil
 import stat
 import subprocess
 import sys
@@ -33,6 +34,14 @@ DEFAULT_MAX_ITERATIONS = 20
 DEFAULT_MAX_NO_IMPROVEMENT = 5
 DEFAULT_EVALUATOR_TIMEOUT = 30.0
 MAX_EVALUATOR_OUTPUT_BYTES = 65_536
+DEFAULT_EVALUATOR_BACKEND = "trusted-local"
+DOCKER_IMAGE = (
+    "docker.io/library/python@sha256:"
+    "593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dd8dbcade98e669c"
+)
+# Selected official Python 3.12.12 slim-bookworm multi-arch OCI index.
+# Strict mode never pulls images automatically. Runtime digest requires approval
+# for each future update; a digest pin is not a container-escape guarantee.
 # Reviewed, bundled reference evaluator only. Updates require an explicit source review.
 # This is an integrity pin, NOT a sandbox or an authentication mechanism.
 TRUSTED_REFERENCE_EVALUATOR_SHA256 = "dbad5763e68b66c40dbfd852ea80ca041ffa0811c788bdcadc13ee0e5095cff5"
@@ -112,6 +121,7 @@ class EngineConfig:
     # A programmatic caller may pin its own previously reviewed evaluator (e.g. tests).
     # The CLI intentionally does not expose a self-approval switch.
     trusted_evaluator_sha256: str | None = None
+    evaluator_backend: str = DEFAULT_EVALUATOR_BACKEND
 
 
 @dataclass(frozen=True)
@@ -306,6 +316,17 @@ class CampaignEngine:
             raise EngineError("max_no_improvement must be positive")
         if self.config.evaluator_timeout <= 0:
             raise EngineError("evaluator_timeout must be positive")
+        if self.config.evaluator_backend not in ("trusted-local", "docker-strict"):
+            raise EngineError("unsupported evaluator backend")
+        if self.config.evaluator_backend == "docker-strict":
+            # Strict mode currently supports only the independently pinned
+            # reference adapter and policy, not arbitrary custom evaluators.
+            if self.config.trusted_evaluator_sha256 not in (
+                None, TRUSTED_REFERENCE_EVALUATOR_SHA256
+            ):
+                raise EngineError("docker-strict requires the reviewed reference evaluator")
+            if os.getuid() == 0:
+                raise EngineError("docker-strict refuses a root host identity")
 
     def _ensure_state_dir(self) -> None:
         created = not self.state_dir.exists()
@@ -434,6 +455,11 @@ class CampaignEngine:
         self._validate_evaluator_trust()
         self._validate_candidate_path(candidate)
         snapshot, candidate_sha256, candidate_bytes = self._create_evaluation_snapshot(candidate)
+        if self.config.evaluator_backend == "docker-strict":
+            try:
+                return self._evaluate_docker(snapshot, candidate_sha256, candidate_bytes)
+            finally:
+                snapshot.unlink(missing_ok=True)
         try:
             command = [
                 sys.executable,
@@ -510,6 +536,234 @@ class CampaignEngine:
             return result
         finally:
             snapshot.unlink(missing_ok=True)
+
+    @staticmethod
+    def _stage_docker_input(source: Path, destination: Path, expected_digest: str) -> None:
+        """Stage only reviewed source bytes, not the campaign directory."""
+        digest = hashlib.sha256()
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        with os.fdopen(os.open(source, flags), "rb") as inp:
+            if not stat.S_ISREG(os.fstat(inp.fileno()).st_mode):
+                raise EvaluationError("docker input is not a regular file")
+            with destination.open("xb") as out:
+                for chunk in iter(lambda: inp.read(1024 * 1024), b""):
+                    out.write(chunk)
+                    digest.update(chunk)
+                out.flush()
+                os.fsync(out.fileno())
+        if digest.hexdigest() != expected_digest:
+            raise EvaluationError("reviewed docker input changed while staging")
+        destination.chmod(0o400)
+
+    @staticmethod
+    def _require_local_docker_context(docker: str) -> None:
+        """Never bind local candidate paths on a remote Docker daemon."""
+        if os.environ.get("DOCKER_HOST"):
+            raise EvaluationError(
+                "docker-strict refuses DOCKER_HOST overrides; use a local Unix Docker context"
+            )
+        try:
+            result = subprocess.run(
+                [docker, "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"],
+                capture_output=True, text=True, timeout=10, check=False,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise EvaluationError("docker-strict cannot verify local Docker context") from exc
+        endpoint = result.stdout.strip()
+        if result.returncode != 0 or not endpoint.startswith("unix:///"):
+            raise EvaluationError(
+                "docker-strict requires a local Unix-socket Docker daemon"
+            )
+
+    def _evaluate_docker(
+        self, snapshot: Path, candidate_sha256: str, candidate_bytes: int
+    ) -> dict[str, Any]:
+        """Opt-in, fail-closed container execution of the pinned reference policy.
+
+        No implicit pulls, campaign mounts, host secrets, or trusted-local fallback.
+        The Docker daemon and OCI image remain trusted dependencies.
+        """
+        docker = shutil.which("docker")
+        if docker is None:
+            raise EvaluationError("docker-strict unavailable: docker CLI not found")
+        self._require_local_docker_context(docker)
+        try:
+            image = subprocess.run(
+                [docker, "image", "inspect", DOCKER_IMAGE],
+                capture_output=True, timeout=10, check=False,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise EvaluationError("docker-strict cannot verify pinned local image") from exc
+        if image.returncode != 0:
+            raise EvaluationError("docker-strict pinned image absent; no automatic pull")
+        # Never accept a custom evaluator merely because it was self-pinned.
+        if self.config.trusted_evaluator_sha256 not in (
+            None, TRUSTED_REFERENCE_EVALUATOR_SHA256
+        ):
+            raise EvaluationError("docker-strict requires reviewed reference evaluator")
+
+        container = "eudaimon-strict-" + uuid.uuid4().hex
+        created = False
+        started = time.monotonic()
+        with tempfile.TemporaryDirectory(prefix="eudaimon-docker-inputs-") as tmp:
+            stage = Path(tmp)
+            adapter = stage / "eval_runner.py"
+            policy = stage / "rr_policy.py"
+            self._stage_docker_input(
+                self.evaluator, adapter, TRUSTED_REFERENCE_EVALUATOR_SHA256
+            )
+            self._stage_docker_input(
+                self.campaign / "rr_policy.py", policy, TRUSTED_REFERENCE_POLICY_SHA256
+            )
+            # The candidate is a per-evaluation, fsynced, mode-0400 snapshot.
+            # Matching the host UID/GID permits read access to exact bind mounts
+            # without making candidate contents world-readable on the host.
+            mounts = [
+                (adapter, "/eval_runner.py"),
+                (policy, "/rr_policy.py"),
+                (snapshot, "/candidate.md"),
+            ]
+            command = [
+                docker, "create", "--pull=never", "--name", container,
+                "--label", "org.eudaimon.backend=docker-strict",
+                "--network", "none", "--read-only",
+                "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
+                "--pids-limit", "32", "--memory", "256m", "--cpus", "1",
+                "--user", f"{os.getuid()}:{os.getgid()}",
+                "--workdir", "/", "--tmpfs", "/tmp:rw,nosuid,nodev,size=16m",
+                "--entrypoint", "python3",
+            ]
+            for host_path, container_path in mounts:
+                command.extend([
+                    "--mount",
+                    f"type=bind,src={host_path},dst={container_path},readonly",
+                ])
+            command.extend([
+                DOCKER_IMAGE, "-I", "-B", "/eval_runner.py",
+                "--candidate", "/candidate.md",
+            ])
+            try:
+                try:
+                    creation = subprocess.run(
+                        command, capture_output=True, text=True,
+                        check=False, timeout=15,
+                    )
+                except (OSError, subprocess.SubprocessError) as exc:
+                    raise EvaluationError("docker-strict container creation failed") from exc
+                if creation.returncode != 0:
+                    raise EvaluationError(
+                        "docker-strict container creation refused: "
+                        + creation.stderr.strip()[:400]
+                    )
+                created = True
+                if not (
+                    len(creation.stdout.strip()) == 64
+                    and all(c in "0123456789abcdef" for c in creation.stdout.strip())
+                ):
+                    raise EvaluationError("docker-strict invalid container identity")
+                def limit_output() -> None:
+                    resource.setrlimit(
+                        resource.RLIMIT_FSIZE,
+                        (MAX_EVALUATOR_OUTPUT_BYTES, MAX_EVALUATOR_OUTPUT_BYTES),
+                    )
+
+                with tempfile.TemporaryFile(mode="w+b") as stdout, tempfile.TemporaryFile(mode="w+b") as stderr:
+                    try:
+                        process = subprocess.Popen(
+                            [docker, "start", "-a", container],
+                            stdout=stdout, stderr=stderr,
+                            start_new_session=True, preexec_fn=limit_output,
+                        )
+                    except OSError as exc:
+                        raise EvaluationError("docker-strict cannot attach evaluator") from exc
+                    timed_out = False
+                    try:
+                        try:
+                            cli_exit = process.wait(timeout=self.config.evaluator_timeout)
+                        except subprocess.TimeoutExpired:
+                            timed_out = True
+                            cli_exit = -1
+                    finally:
+                        try:
+                            self._terminate_evaluator_group(process)
+                        finally:
+                            if process.poll() is None:
+                                process.kill()
+                                process.wait(timeout=5)
+                    if timed_out:
+                        raise EvaluationError("docker-strict evaluator timeout")
+                    if cli_exit != 0:
+                        raise EvaluationError("docker-strict evaluator attach failed")
+                    stdout.seek(0, os.SEEK_END)
+                    stderr.seek(0, os.SEEK_END)
+                    if (
+                        stdout.tell() >= MAX_EVALUATOR_OUTPUT_BYTES
+                        or stderr.tell() >= MAX_EVALUATOR_OUTPUT_BYTES
+                    ):
+                        raise EvaluationError("docker-strict evaluator output exceeded limit")
+                    stdout.seek(0)
+                    stderr.seek(0)
+                    output = stdout.read(MAX_EVALUATOR_OUTPUT_BYTES + 1).decode(
+                        "utf-8", errors="replace"
+                    )
+                try:
+                    inspection = subprocess.run(
+                        [docker, "inspect", "--format", "{{json .State}}", container],
+                        capture_output=True, text=True, timeout=10, check=False,
+                    )
+                    state = json.loads(inspection.stdout) if inspection.returncode == 0 else {}
+                except (OSError, subprocess.SubprocessError, ValueError) as exc:
+                    raise EvaluationError("docker-strict cannot inspect evaluator exit") from exc
+                if (
+                    state.get("Status") != "exited"
+                    or state.get("Running") is not False
+                    or state.get("ExitCode") != 0
+                ):
+                    raise EvaluationError("docker-strict evaluator exited unsuccessfully")
+                lines = [line.strip() for line in output.splitlines() if line.strip()]
+                if not lines:
+                    raise EvaluationError("docker-strict evaluator produced no output")
+                try:
+                    payload = json.loads(lines[-1])
+                except json.JSONDecodeError as exc:
+                    raise EvaluationError("docker-strict evaluator output is not JSON") from exc
+                result = validate_evaluation(payload)
+                result["candidate_sha256"] = candidate_sha256
+                result["candidate_bytes"] = candidate_bytes
+                result["duration_seconds"] = round(time.monotonic() - started, 6)
+                result["evaluator_backend"] = "docker-strict"
+                result["image_digest"] = DOCKER_IMAGE.split("@", 1)[1]
+                return result
+            finally:
+                # A killed Docker CLI can leave a container alive. Removal and
+                # verification are mandatory, even after failed start/timeout.
+                try:
+                    removal = subprocess.run(
+                        [docker, "rm", "-f", container],
+                        capture_output=True, text=True, timeout=15, check=False,
+                    )
+                    probe = subprocess.run(
+                        [docker, "inspect", container],
+                        capture_output=True, text=True, timeout=10, check=False,
+                    )
+                except (OSError, subprocess.SubprocessError) as exc:
+                    raise EvaluationError(
+                        "docker-strict cleanup unverified; container may remain"
+                    ) from exc
+                # Docker 29 emits lowercase "no such object"; older engines
+                # use "No such object". Accept only the specific not-found
+                # result, never an arbitrary inspect error.
+                probe_error = probe.stderr.casefold()
+                absent = (
+                    probe.returncode != 0
+                    and ("no such object" in probe_error or "no such container" in probe_error)
+                )
+                # Docker create may fail after allocating a container.
+                # Require verified absence even without a successful response.
+                if not absent or (created and removal.returncode != 0):
+                    raise EvaluationError(
+                        "docker-strict cleanup failed or unverified; container may remain"
+                    )
 
     def _fsync_directory(self, directory: Path, *, required: bool = False) -> None:
         try:
@@ -795,6 +1049,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-iterations", type=int, default=DEFAULT_MAX_ITERATIONS)
     parser.add_argument("--max-no-improvement", type=int, default=DEFAULT_MAX_NO_IMPROVEMENT)
     parser.add_argument("--evaluator-timeout", type=float, default=DEFAULT_EVALUATOR_TIMEOUT)
+    parser.add_argument(
+        "--evaluator-backend", choices=("trusted-local", "docker-strict"),
+        default=DEFAULT_EVALUATOR_BACKEND,
+        help="trusted-local is not sandboxed; docker-strict requires a preinstalled pinned image",
+    )
     return parser
 
 
@@ -806,6 +1065,7 @@ def main(argv: list[str] | None = None) -> int:
         max_iterations=args.max_iterations,
         max_no_improvement=args.max_no_improvement,
         evaluator_timeout=args.evaluator_timeout,
+        evaluator_backend=args.evaluator_backend,
     )
     try:
         result = CampaignEngine(config).run()

@@ -118,12 +118,18 @@ the strict backend works.
 
 ## 6. Stop/go decisions
 
-- **D6-A (open):** Approve Docker as an *optional* evaluator isolation
-  backend rather than `sandbox-exec` or a custom native macOS sandbox.
-- **D6-B (open):** Select and approve a pinned OCI Python runtime image
-  digest, image provenance, supported architectures, and update procedure.
-- **D6-C (open):** Approve the strict-mode threat model and a separate
-  implementation PR with the test gates above.
+- **D6-A (APPROVED 2026-11-19):** Docker is an optional strict evaluator
+  backend. The default trusted-local backend remains unchanged.
+- **D6-B (SELECTED FOR EXPERIMENTAL TESTING):** Official Python 3.12.12
+  slim-bookworm multi-platform OCI index digest
+  sha256:593bd06efe90efa80dc4eee3948be7c0fde4134606dd40d8dbcade98e669c.
+  Digest is pinned, no auto-pulls. Independent supply-chain attestation,
+  architecture-specific runtime tests and future update process remain
+  required before production approval.
+- **D6-C (IMPLEMENTATION AUTHORIZED 2026-11-19):** An opt-in, fail-closed
+  strict backend may be implemented in a separate PR with the tests above.
+  **Production security sign-off remains OPEN** until runtime gates pass.
 
-**Current state:** design and synthetic capability probes only.
-No production evaluator launch path has been changed.
+**Current state:** the separate strict-backend implementation is experimental
+and not production-approved. See docs/12-strict-docker-backend.md. The
+canonical conceptual source and historical evidence remain unchanged.

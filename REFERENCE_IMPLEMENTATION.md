@@ -44,6 +44,14 @@ require operator review instead of automatic recovery. Directory syncs for
 new state and ledger entries are mandatory before promotion on supported
 filesystems; unsupported syncs fail closed. Older ledger events remain
 readable and are never silently rewritten.
+An **experimental, opt-in** strict Docker evaluator backend is available
+with --evaluator-backend docker-strict and requires the exact pinned OCI
+image to be installed locally. It never auto-pulls, falls back, or accepts
+custom evaluators. See docs/12-strict-docker-backend.md for threat model,
+commands, verification and limitations. The default trusted-local mode
+remains unchanged and is not sandboxed. Docker isolation is not a proof of
+hostile-code safety or production readiness.
+
 No implementation of the full AGI+W blueprint is claimed.
 
 ## Repository layout

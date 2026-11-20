@@ -47,6 +47,28 @@ class StrictBackendContractTests(unittest.TestCase):
             bad.run()
         self.assertFalse((self.root / ".autoresearch").exists())
 
+    def test_remote_docker_context_rejected_before_image_lookup(self):
+        def run(command, **kwargs):
+            self.assertEqual(command[1:3], ["context", "inspect"])
+            return subprocess.CompletedProcess(
+                command, 0, stdout="tcp://remote.example.invalid:2376\n", stderr=""
+            )
+        with patch("engine.engine.shutil.which", return_value="/usr/local/bin/docker"), \
+             patch("engine.engine.subprocess.run", side_effect=run):
+            result = self.engine.run()
+        self.assertEqual(result.reason, "baseline_evaluation_error")
+        self.assertFalse(any(e["event"] == "baseline" for e in [
+            json.loads(x) for x in self.engine.ledger.read_text().splitlines()
+        ]))
+
+    def test_docker_host_override_rejected(self):
+        with patch.dict("engine.engine.os.environ", {"DOCKER_HOST": "tcp://remote.invalid:2376"}), \
+             patch("engine.engine.shutil.which", return_value="/usr/local/bin/docker"), \
+             patch("engine.engine.subprocess.run") as run:
+            result = self.engine.run()
+        self.assertEqual(result.reason, "baseline_evaluation_error")
+        run.assert_not_called()
+
     def test_missing_docker_halts_without_fallback_or_promotion(self):
         with patch("engine.engine.shutil.which", return_value=None):
             result = self.engine.run()
@@ -62,19 +84,28 @@ class StrictBackendContractTests(unittest.TestCase):
         calls = []
         def run(command, **kwargs):
             calls.append(command)
+            if command[1:3] == ["context", "inspect"]:
+                return subprocess.CompletedProcess(
+                    command, 0, stdout="unix:///var/run/docker.sock\n", stderr=""
+                )
             return subprocess.CompletedProcess(command, 1, stdout=b"", stderr=b"missing")
         with patch("engine.engine.shutil.which", return_value="/usr/local/bin/docker"), \
              patch("engine.engine.subprocess.run", side_effect=run):
             result = self.engine.run()
         self.assertEqual(result.reason, "baseline_evaluation_error")
-        self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0][1:3], ["image", "inspect"])
-        self.assertEqual(calls[0][-1], DOCKER_IMAGE)
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0][1:3], ["context", "inspect"])
+        self.assertEqual(calls[1][1:3], ["image", "inspect"])
+        self.assertEqual(calls[1][-1], DOCKER_IMAGE)
 
     def test_create_command_mounts_only_three_reviewed_inputs(self):
         calls = []
         def run(command, **kwargs):
             calls.append(command)
+            if command[1:3] == ["context", "inspect"]:
+                return subprocess.CompletedProcess(
+                    command, 0, stdout="unix:///var/run/docker.sock\n", stderr=""
+                )
             if command[1:3] == ["image", "inspect"]:
                 return subprocess.CompletedProcess(command, 0, stdout=b"[]", stderr=b"")
             if command[1] == "create":
@@ -111,6 +142,10 @@ class StrictBackendContractTests(unittest.TestCase):
         calls = []
         def run(command, **kwargs):
             calls.append(command)
+            if command[1:3] == ["context", "inspect"]:
+                return subprocess.CompletedProcess(
+                    command, 0, stdout="unix:///var/run/docker.sock\n", stderr=""
+                )
             if command[1:3] == ["image", "inspect"]:
                 return subprocess.CompletedProcess(command, 0, stdout=b"[]", stderr=b"")
             if command[1] == "create":
@@ -132,6 +167,10 @@ class StrictBackendContractTests(unittest.TestCase):
         calls = []
         def run(command, **kwargs):
             calls.append(command)
+            if command[1:3] == ["context", "inspect"]:
+                return subprocess.CompletedProcess(
+                    command, 0, stdout="unix:///var/run/docker.sock\n", stderr=""
+                )
             if command[1:3] == ["image", "inspect"]:
                 return subprocess.CompletedProcess(command, 0, stdout=b"[]", stderr=b"")
             if command[1] == "create":
@@ -172,6 +211,10 @@ class StrictBackendContractTests(unittest.TestCase):
         calls = []
         def run(command, **kwargs):
             calls.append(command)
+            if command[1:3] == ["context", "inspect"]:
+                return subprocess.CompletedProcess(
+                    command, 0, stdout="unix:///var/run/docker.sock\n", stderr=""
+                )
             if command[1:3] == ["image", "inspect"]:
                 return subprocess.CompletedProcess(command, 0, stdout=b"[]", stderr=b"")
             if command[1] == "create":

@@ -555,6 +555,26 @@ class CampaignEngine:
             raise EvaluationError("reviewed docker input changed while staging")
         destination.chmod(0o400)
 
+    @staticmethod
+    def _require_local_docker_context(docker: str) -> None:
+        """Never bind local candidate paths on a remote Docker daemon."""
+        if os.environ.get("DOCKER_HOST"):
+            raise EvaluationError(
+                "docker-strict refuses DOCKER_HOST overrides; use a local Unix Docker context"
+            )
+        try:
+            result = subprocess.run(
+                [docker, "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"],
+                capture_output=True, text=True, timeout=10, check=False,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise EvaluationError("docker-strict cannot verify local Docker context") from exc
+        endpoint = result.stdout.strip()
+        if result.returncode != 0 or not endpoint.startswith("unix:///"):
+            raise EvaluationError(
+                "docker-strict requires a local Unix-socket Docker daemon"
+            )
+
     def _evaluate_docker(
         self, snapshot: Path, candidate_sha256: str, candidate_bytes: int
     ) -> dict[str, Any]:
@@ -566,6 +586,7 @@ class CampaignEngine:
         docker = shutil.which("docker")
         if docker is None:
             raise EvaluationError("docker-strict unavailable: docker CLI not found")
+        self._require_local_docker_context(docker)
         try:
             image = subprocess.run(
                 [docker, "image", "inspect", DOCKER_IMAGE],

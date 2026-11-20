@@ -34,8 +34,11 @@ The engine itself never issues docker pull.
 
 ## Isolation and trust
 
-The engine checks the exact image digest locally, then starts a fresh
-container with pull=never, network=none, a read-only root filesystem,
+The engine first rejects DOCKER_HOST overrides and Docker contexts whose
+endpoint is not a local Unix socket. This prevents accidentally interpreting
+local candidate bind paths on a remote Docker daemon. It then checks the exact
+image digest locally and starts a fresh container with pull=never, network=none,
+a read-only root filesystem,
 all Linux capabilities dropped, no-new-privileges, a non-root numeric UID/GID,
 a 32-process limit, 256 MiB memory limit, one CPU, and a bounded scratch
 tmpfs. It bind-mounts **only three exact read-only files**:

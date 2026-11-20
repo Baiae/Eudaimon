@@ -1,8 +1,8 @@
 # Docker strict evaluator — reproducible runtime evidence
 
-**Evidence date:** 2026-11-19 (US Pacific; CI timestamps may be UTC 2026-11-20)  
-**Branch:** `feature/eudaimon-docker-strict-2026-11-19`  
-**Validated commit:** `db11d2c6c3d5473f35f793c22f8e11d92358430a`  
+**Evidence date:** 2026-11-19 (US Pacific; CI timestamps may be UTC 2026-11-20)
+**Branch:** `feature/eudaimon-docker-strict-2026-11-19`
+**Validated commit:** `db11d2c6c3d5473f35f793c22f8e11d92358430a`
 **Scope:** synthetic public reference campaign only; no historical/private campaign data.
 
 ## Verified on Linux

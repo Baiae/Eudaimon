@@ -109,3 +109,9 @@ jobs:
         env:
           PYTHONDONTWRITEBYTECODE: "1"
         run: python -B tools/audit_ledger.py tests/fixtures/legacy-synthetic.jsonl
+
+      - name: Check Context Shift Lab public demo
+        shell: bash
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -B -m unittest discover -s experiments/context_shift_lab -p 'test_*.py' -v

@@ -1,0 +1,102 @@
+{
+  "name": "Research triage context switches v0.1",
+  "status": "PUBLIC_DEMO_PROVISIONAL_LABELS",
+  "pairs": [
+    {
+      "pair_id": "replication-safety", "title": "Replication or possible harm",
+      "items": [
+        {"id": "a", "text": "A press summary calls the original result a major breakthrough but supplies no methods."},
+        {"id": "b", "text": "Three independent teams repeated the protocol and obtained a smaller, consistent effect."},
+        {"id": "c", "text": "The experiment log records a recurring unexpected failure under one operating condition."}
+      ],
+      "contexts": [
+        {"case_id": "replication", "goal": "Prioritize evidence that the reported effect replicates independently.", "gold_id": "b", "reason": "Independent repeat attempts directly address replication."},
+        {"case_id": "possible-harm", "goal": "Prioritize the strongest signal of possible harm before another trial.", "gold_id": "c", "reason": "The recurring failure is the direct warning signal."}
+      ]
+    },
+    {
+      "pair_id": "speed-reproduction", "title": "Fastest result or reproducible result",
+      "items": [
+        {"id": "a", "text": "A cached run finishes in two minutes but does not record its random seed or software version."},
+        {"id": "b", "text": "A pinned environment saves the full input manifest and seed, then finishes in 20 minutes."},
+        {"id": "c", "text": "A slide deck asserts that the work is reproducible and fast without showing a run."}
+      ],
+      "contexts": [
+        {"case_id": "speed", "goal": "Get the fastest rough result for a disposable internal check.", "gold_id": "a", "reason": "The cached run has the shortest stated turnaround for a disposable check."},
+        {"case_id": "reproduction", "goal": "Select the run another team can reproduce exactly next week.", "gold_id": "b", "reason": "Pinned inputs, version, and seed permit a repeatable run."}
+      ]
+    },
+    {
+      "pair_id": "freshness-provenance", "title": "Latest signal or source identity",
+      "items": [
+        {"id": "a", "text": "A new observation arrived this morning with a timestamp but no origin record."},
+        {"id": "b", "text": "An older observation has a signed source manifest, collection method, and chain of custody."},
+        {"id": "c", "text": "A search snippet says the latest verified source is authoritative; its link is broken."}
+      ],
+      "contexts": [
+        {"case_id": "freshness", "goal": "Identify the freshest signal that might warrant a follow-up, without claiming it is verified.", "gold_id": "a", "reason": "The timestamp makes it the newest observation; its origin remains uncertain."},
+        {"case_id": "provenance", "goal": "Choose the observation with independently checkable provenance for a formal record.", "gold_id": "b", "reason": "The source manifest and method provide checkable provenance."}
+      ]
+    },
+    {
+      "pair_id": "restore-diagnose", "title": "Restore service or diagnose cause",
+      "items": [
+        {"id": "a", "text": "A tested rollback returns the service to its previous state in five minutes."},
+        {"id": "b", "text": "Trace samples isolate the first failing call after a dependency changed."},
+        {"id": "c", "text": "A dashboard banner says RESTORE and ROOT CAUSE in large letters but contains no measurement."}
+      ],
+      "contexts": [
+        {"case_id": "restore", "goal": "Restore the synthetic test service as quickly as the evidence permits.", "gold_id": "a", "reason": "The tested rollback directly restores the service."},
+        {"case_id": "diagnose", "goal": "Identify evidence for the root cause before changing the dependency.", "gold_id": "b", "reason": "The traces point to the first failing call after the change."}
+      ]
+    },
+    {
+      "pair_id": "coverage-uncertainty", "title": "Broad coverage or uncertainty",
+      "items": [
+        {"id": "a", "text": "The matrix exercises all 12 planned ordinary input groups and reports pass counts."},
+        {"id": "b", "text": "Reviewers disagree sharply on the five ambiguous cases and record their reasons."},
+        {"id": "c", "text": "A one-line summary claims broad coverage and zero uncertainty without samples."}
+      ],
+      "contexts": [
+        {"case_id": "coverage", "goal": "Find evidence of coverage across the planned ordinary groups.", "gold_id": "a", "reason": "The matrix checks every planned ordinary group."},
+        {"case_id": "uncertainty", "goal": "Find where annotator uncertainty is greatest before using the labels.", "gold_id": "b", "reason": "Recorded reviewer disagreement identifies the ambiguous cases."}
+      ]
+    },
+    {
+      "pair_id": "baseline-shift", "title": "Typical accuracy or changed conditions",
+      "items": [
+        {"id": "a", "text": "On the ordinary sample, 92 of 100 ranked choices match the provisional labels."},
+        {"id": "b", "text": "After the vocabulary changes, only 8 of 20 ranked choices match the labels."},
+        {"id": "c", "text": "A poster says HIGH ACCURACY UNDER SHIFT and repeats the headline several times."}
+      ],
+      "contexts": [
+        {"case_id": "typical-accuracy", "goal": "Report performance on the ordinary sample only.", "gold_id": "a", "reason": "The ordinary sample gives an explicit numerator and denominator."},
+        {"case_id": "shift-failure", "goal": "Find the strongest evidence of a failure under changed vocabulary.", "gold_id": "b", "reason": "The changed-vocabulary result records a substantial performance drop."}
+      ]
+    },
+    {
+      "pair_id": "sample-integrity", "title": "Larger sample or clean split",
+      "items": [
+        {"id": "a", "text": "A new batch adds 500 examples, but duplicates 40 items from the training set."},
+        {"id": "b", "text": "A smaller batch of 80 examples is family-disjoint from training and has stable identifiers."},
+        {"id": "c", "text": "The project note repeats large sample and clean split but lists no identifiers."}
+      ],
+      "contexts": [
+        {"case_id": "sample-size", "goal": "Find the batch with more examples for a non-confirmatory load test.", "gold_id": "a", "reason": "The larger batch contains 500 examples; its duplicates limit other uses."},
+        {"case_id": "clean-split", "goal": "Choose a clean split for a confirmation test with no training-family overlap.", "gold_id": "b", "reason": "The smaller batch is explicitly family-disjoint."}
+      ]
+    },
+    {
+      "pair_id": "action-reversibility", "title": "Immediate progress or easy reversal",
+      "items": [
+        {"id": "a", "text": "Applying the proposed edit now completes the local prototype in one minute; undoing it requires restoring state."},
+        {"id": "b", "text": "A dry run on an isolated copy takes ten minutes and leaves the original unchanged."},
+        {"id": "c", "text": "The meeting note calls the edit both immediate and perfectly reversible but supplies no procedure."}
+      ],
+      "contexts": [
+        {"case_id": "immediate", "goal": "Complete the disposable local prototype immediately.", "gold_id": "a", "reason": "Applying the edit directly has the shorter stated path."},
+        {"case_id": "reversible", "goal": "Test the idea while making reversal trivial and preserving the original.", "gold_id": "b", "reason": "The isolated dry run leaves the original untouched."}
+      ]
+    }
+  ]
+}

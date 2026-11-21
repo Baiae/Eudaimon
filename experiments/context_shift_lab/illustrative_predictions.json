@@ -1,0 +1,133 @@
+{
+  "model_name": "Illustrative hand-authored ranking (not a model run)",
+  "predictions": [
+    {
+      "case_id": "replication",
+      "ranked_ids": [
+        "b",
+        "a",
+        "c"
+      ]
+    },
+    {
+      "case_id": "possible-harm",
+      "ranked_ids": [
+        "b",
+        "a",
+        "c"
+      ]
+    },
+    {
+      "case_id": "speed",
+      "ranked_ids": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    {
+      "case_id": "reproduction",
+      "ranked_ids": [
+        "b",
+        "a",
+        "c"
+      ]
+    },
+    {
+      "case_id": "freshness",
+      "ranked_ids": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    {
+      "case_id": "provenance",
+      "ranked_ids": [
+        "b",
+        "a",
+        "c"
+      ]
+    },
+    {
+      "case_id": "restore",
+      "ranked_ids": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    {
+      "case_id": "diagnose",
+      "ranked_ids": [
+        "b",
+        "a",
+        "c"
+      ]
+    },
+    {
+      "case_id": "coverage",
+      "ranked_ids": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    {
+      "case_id": "uncertainty",
+      "ranked_ids": [
+        "b",
+        "a",
+        "c"
+      ]
+    },
+    {
+      "case_id": "typical-accuracy",
+      "ranked_ids": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    {
+      "case_id": "shift-failure",
+      "ranked_ids": [
+        "b",
+        "a",
+        "c"
+      ]
+    },
+    {
+      "case_id": "sample-size",
+      "ranked_ids": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    {
+      "case_id": "clean-split",
+      "ranked_ids": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    {
+      "case_id": "immediate",
+      "ranked_ids": [
+        "a",
+        "b",
+        "c"
+      ]
+    },
+    {
+      "case_id": "reversible",
+      "ranked_ids": [
+        "b",
+        "a",
+        "c"
+      ]
+    }
+  ]
+}

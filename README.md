@@ -11,6 +11,15 @@ implementation contract, limitations, and tests. The older text below
 describes the historical design-only baseline, **not** the status of the
 new reference engine; no full AGI+W implementation is claimed.
 
+## Context Shift Lab public demo
+
+[Context Shift Lab](experiments/context_shift_lab/README.md) provides a separate,
+stdlib-only diagnostic for paired context changes, with an offline HTML results
+page in `experiments/context_shift_lab/demo_report.html`. Its eight public cases
+have provisional labels, and its included sample ranking is hand-authored. It
+does not change the protected campaign evaluator or constitute evidence of
+intelligence or wisdom.
+
 
 Design documents and an untested reference sketch for an AGI+W (Artificial General Intelligence + Wisdom) system whose self-improvement organ is a harness-agnostic AutoResearch engine (AutoResearch-W).
 

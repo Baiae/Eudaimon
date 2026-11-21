@@ -39,6 +39,12 @@ class ContextShiftTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "exact permutation"):
             lab.score(self.suite, invalid)
 
+    def test_agent_prompts_exclude_labels_and_reasons(self):
+        prompts = lab.agent_prompts(self.suite)
+        self.assertEqual(len(prompts["cases"]), 16)
+        self.assertTrue(all("gold_id" not in c and "reason" not in c for c in prompts["cases"]))
+        self.assertEqual(prompts["cases"][0]["items"], prompts["cases"][1]["items"])
+
     def test_report_is_standalone_and_embedded_data_cannot_close_script_tag(self):
         malicious = {**self.illustrative, "model_name": "</script><script>alert('x')</script>"}
         report = lab.build_report(HERE / "demo_suite.json", malicious)

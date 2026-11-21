@@ -59,6 +59,15 @@ def lexical_baseline(suite: dict) -> dict:
     return {"model_name": "Goal-word overlap (diagnostic baseline)", "predictions": predictions}
 
 
+def agent_prompts(suite: dict) -> dict:
+    """Export only the public inputs; do not hand an agent labels or rationales."""
+    return {"suite_name": suite["name"], "cases": [
+        {"pair_id": pair["pair_id"], "case_id": case["case_id"], "goal": case["goal"],
+         "items": pair["items"]}
+        for pair in suite["pairs"] for case in pair["contexts"]
+    ]}
+
+
 def score(suite: dict, submission: dict) -> dict:
     """Reject missing/extra/invalid predictions; count a pair only if both are correct."""
     if not isinstance(submission.get("model_name"), str) or not submission["model_name"].strip():
@@ -115,11 +124,19 @@ def write_html(report: dict, path: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--suite", type=Path, default=HERE / "demo_suite.json")
-    parser.add_argument("--predictions", type=Path, required=True, help="JSON with model_name and a ranking for every case")
+    parser.add_argument("--predictions", type=Path, help="JSON with model_name and a ranking for every case")
+    parser.add_argument("--export-prompts", type=Path, help="write agent-facing inputs without answer keys, then exit")
     parser.add_argument("--html", type=Path, default=HERE / "report.html")
     parser.add_argument("--json", type=Path, help="optional machine-readable results path")
     args = parser.parse_args()
     try:
+        if args.export_prompts:
+            prompts = agent_prompts(load_suite(args.suite))
+            args.export_prompts.write_text(json.dumps(prompts, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+            print(f"exported {len(prompts['cases'])} agent-facing cases to {args.export_prompts}")
+            return 0
+        if args.predictions is None:
+            parser.error("--predictions is required unless --export-prompts is used")
         submission = json.loads(args.predictions.read_text(encoding="utf-8"))
         report = build_report(args.suite, submission)
         write_html(report, args.html)

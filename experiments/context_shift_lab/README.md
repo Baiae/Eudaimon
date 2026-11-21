@@ -15,7 +15,14 @@ python3 experiments/context_shift_lab/runner.py \
 
 Open `/tmp/context-shift-report.html` in a browser. It has no server, network calls, JavaScript dependencies, or backend process. A committed `demo_report.html` shows the illustrative result immediately. The report filters passed/missed pairs and prints to PDF.
 
-To test an agent, give it each `goal` and the pair's shared `items` from `demo_suite.json`. Collect a complete ranking of item IDs per case. Save a JSON file using the shape below, then pass it to `--predictions`. Do **not** give it `gold_id` or `reason` as input. Because the demo labels are public, this procedure is exploratory and unsuitable as a confirmatory test.
+To test an agent, export the input-only set and give it each `goal` and `items` from `demo_prompts.json` (or from your exported copy). Collect a complete ranking of item IDs per case. Save a JSON file using the shape below, then pass it to `--predictions`.
+
+```bash
+python3 experiments/context_shift_lab/runner.py \
+  --export-prompts /tmp/context-shift-prompts.json
+```
+
+The export excludes `gold_id` and `reason`. Because the demo labels are public in the repository, this procedure is exploratory and unsuitable as a confirmatory test.
 
 ```json
 {

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Context Shift Lab · Evaluation report</title>
+  <style>
+    :root { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; color: #f2f1ed; background: #101925; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; background: radial-gradient(circle at 90% 0%, #233d4c 0, transparent 35%), #101925; }
+    .shell { max-width: 1160px; margin: 0 auto; padding: 34px 28px 80px; }
+    .eyebrow { color: #76e2d1; font-size: .73rem; text-transform: uppercase; letter-spacing: .16em; font-weight: 750; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-family: Georgia, serif; font-size: clamp(2.4rem, 5.4vw, 4.9rem); line-height: 1.02; letter-spacing: -.04em; margin: 18px 0; max-width: 780px; }
+    h2 { font-size: 1.15rem; margin: 0; }
+    .lede { max-width: 700px; color: #b8c7cf; line-height: 1.65; font-size: 1.04rem; }
+    .pill { border: 1px solid #bf9a5c; color: #f2d5a3; display: inline-block; border-radius: 100px; padding: 7px 12px; font-size: .72rem; font-weight: 750; letter-spacing: .06em; }
+    .top { border-bottom: 1px solid #314554; padding-bottom: 30px; }
+    .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 28px 0 20px; }
+    .card { background: #182736; border: 1px solid #30485a; border-radius: 16px; padding: 23px; min-height: 160px; }
+    .card.accent { background: #204147; border-color: #469989; }
+    .label { color: #acbec8; font-size: .75rem; text-transform: uppercase; letter-spacing: .11em; font-weight: 700; }
+    .number { font-size: clamp(2.1rem, 4vw, 3.4rem); font-weight: 700; line-height: 1.1; margin: 15px 0 4px; letter-spacing: -.05em; }
+    .muted { color: #b8c7cf; line-height: 1.5; }
+    .small { font-size: .82rem; }
+    .note { border-left: 3px solid #dcb074; padding: 10px 15px; margin: 18px 0 32px; background: #302b2b; color: #eedcc9; line-height: 1.55; }
+    .bar { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin: 34px 0 18px; }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; }
+    button { cursor: pointer; border: 1px solid #526678; color: #ecf3f2; background: #1a2b39; padding: 10px 15px; border-radius: 9px; font: inherit; font-size: .85rem; }
+    button:hover, button:focus-visible { border-color: #83ead4; outline: 2px solid transparent; }
+    button[aria-pressed="true"] { background: #74dac8; border-color: #74dac8; color: #092522; font-weight: 750; }
+    .pair { background: #172635; border: 1px solid #34485a; border-radius: 14px; margin-bottom: 12px; overflow: hidden; }
+    summary { cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 15px; padding: 21px 23px; list-style: none; }
+    summary::-webkit-details-marker { display: none; }
+    summary:focus-visible { outline: 2px solid #83ead4; outline-offset: -3px; }
+    .pair-title { display: block; font-size: 1rem; font-weight: 720; margin-top: 5px; }
+    .pair-body { border-top: 1px solid #34485a; padding: 20px 23px 24px; }
+    .context-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+    .context { border: 1px solid #355062; background: #10202d; padding: 17px; border-radius: 10px; }
+    .context h3 { font-size: .96rem; line-height: 1.5; margin: 7px 0 16px; }
+    .result-row { display: flex; justify-content: space-between; gap: 8px; margin: 6px 0; font-size: .9rem; }
+    .result-row strong { text-align: right; }
+    .expected { color: #81dfca; }
+    .miss { color: #f2ad97; }
+    .badge { border-radius: 20px; padding: 6px 10px; font-size: .76rem; font-weight: 750; white-space: nowrap; }
+    .pass { color: #9af0d4; background: #204b43; }
+    .fail { color: #ffc6b3; background: #57372f; }
+    .evidence { padding: 12px 0 0; margin: 15px 0 0; border-top: 1px solid #34485a; }
+    .evidence li { margin: 9px 0; line-height: 1.5; color: #c7d4d9; }
+    .evidence b { color: #f0f2ed; }
+    .meta { overflow-wrap: anywhere; margin-top: 36px; color: #9db0bb; border-top: 1px solid #314554; padding-top: 22px; }
+    @media (max-width: 720px) { .shell { padding: 23px 16px 56px; } .cards, .context-grid { grid-template-columns: 1fr; } .card { min-height: auto; } }
+    @media print { :root { color: #111; background: white; } body { background: white; } .shell { max-width: none; } .top, .pair { border-color: #aaa; } .card, .context, .pair, .note { color: #111; background: white; border-color: #aaa; } .muted, .label, .lede, .evidence li, .meta { color: #333; } button { display: none; } details { break-inside: avoid; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="top">
+      <div class="eyebrow">Eudaimon / evaluation studio · 01</div>
+      <h1>Does the priority change when the context does?</h1>
+      <p class="lede">A paired-case diagnostic of first-choice ranking. Inspect each choice, the expected choice, and the simple goal-word baseline.</p>
+      <span class="pill">PUBLIC DEMO · PROVISIONAL LABELS</span>
+    </header>
+    <section class="cards" id="metrics" aria-label="Results summary"></section>
+    <div class="note">This public example set was authored for a working demonstration. Its labels have not been independently adjudicated, its cases are visible, and its results are not evidence of intelligence, wisdom, or generalization.</div>
+    <section aria-label="Paired scenarios">
+      <div class="bar"><h2>Case by case <span id="count" class="muted"></span></h2><div class="filters" role="group" aria-label="Filter pairs">
+        <button type="button" data-filter="all" aria-pressed="true">All pairs</button>
+        <button type="button" data-filter="fail" aria-pressed="false">Missed switches</button>
+        <button type="button" data-filter="pass" aria-pressed="false">Passed switches</button>
+        <button type="button" id="print">Print / save PDF</button>
+      </div></div>
+      <div id="pairs"></div>
+    </section>
+    <footer class="meta small" id="meta"></footer>
+  </main>
+  <script id="report-data" type="application/json">{"title":"Context Shift Lab","status":"PUBLIC_DEMO_PROVISIONAL_LABELS","suite_sha256":"2647a4fc0b71ff2c63a336eed13a9d3f339030f82a77be904bef393577287d5e","suite_name":"Research triage context switches v0.1","method":"Both first choices must match the provisional labels for a pair to pass.","candidate":{"model_name":"Illustrative hand-authored ranking (not a model run)","pairs_correct":6,"pairs_total":8,"switch_success_rate":0.75,"pairs":[{"pair_id":"replication-safety","title":"Replication or possible harm","items":[{"id":"a","text":"A press summary calls the original result a major breakthrough but supplies no methods."},{"id":"b","text":"Three independent teams repeated the protocol and obtained a smaller, consistent effect."},{"id":"c","text":"The experiment log records a recurring unexpected failure under one operating condition."}],"cases":[{"case_id":"replication","goal":"Prioritize evidence that the reported effect replicates independently.","gold_id":"b","reason":"Independent repeat attempts directly address replication.","ranked_ids":["b","a","c"],"chosen_id":"b","correct":true,"confidence":null},{"case_id":"possible-harm","goal":"Prioritize the strongest signal of possible harm before another trial.","gold_id":"c","reason":"The recurring failure is the direct warning signal.","ranked_ids":["b","a","c"],"chosen_id":"b","correct":false,"confidence":null}],"switch_success":false},{"pair_id":"speed-reproduction","title":"Fastest result or reproducible result","items":[{"id":"a","text":"A cached run finishes in two minutes but does not record its random seed or software version."},{"id":"b","text":"A pinned environment saves the full input manifest and seed, then finishes in 20 minutes."},{"id":"c","text":"A slide deck asserts that the work is reproducible and fast without showing a run."}],"cases":[{"case_id":"speed","goal":"Get the fastest rough result for a disposable internal check.","gold_id":"a","reason":"The cached run has the shortest stated turnaround for a disposable check.","ranked_ids":["a","b","c"],"chosen_id":"a","correct":true,"confidence":null},{"case_id":"reproduction","goal":"Select the run another team can reproduce exactly next week.","gold_id":"b","reason":"Pinned inputs, version, and seed permit a repeatable run.","ranked_ids":["b","a","c"],"chosen_id":"b","correct":true,"confidence":null}],"switch_success":true},{"pair_id":"freshness-provenance","title":"Latest signal or source identity","items":[{"id":"a","text":"A new observation arrived this morning with a timestamp but no origin record."},{"id":"b","text":"An older observation has a signed source manifest, collection method, and chain of custody."},{"id":"c","text":"A search snippet says the latest verified source is authoritative; its link is broken."}],"cases":[{"case_id":"freshness","goal":"Identify the freshest signal that might warrant a follow-up, without claiming it is verified.","gold_id":"a","reason":"The timestamp makes it the newest observation; its origin remains uncertain.","ranked_ids":["a","b","c"],"chosen_id":"a","correct":true,"confidence":null},{"case_id":"provenance","goal":"Choose the observation with independently checkable provenance for a formal record.","gold_id":"b","reason":"The source manifest and method provide checkable provenance.","ranked_ids":["b","a","c"],"chosen_id":"b","correct":true,"confidence":null}],"switch_success":true},{"pair_id":"restore-diagnose","title":"Restore service or diagnose cause","items":[{"id":"a","text":"A tested rollback returns the service to its previous state in five minutes."},{"id":"b","text":"Trace samples isolate the first failing call after a dependency changed."},{"id":"c","text":"A dashboard banner says RESTORE and ROOT CAUSE in large letters but contains no measurement."}],"cases":[{"case_id":"restore","goal":"Restore the synthetic test service as quickly as the evidence permits.","gold_id":"a","reason":"The tested rollback directly restores the service.","ranked_ids":["a","b","c"],"chosen_id":"a","correct":true,"confidence":null},{"case_id":"diagnose","goal":"Identify evidence for the root cause before changing the dependency.","gold_id":"b","reason":"The traces point to the first failing call after the change.","ranked_ids":["b","a","c"],"chosen_id":"b","correct":true,"confidence":null}],"switch_success":true},{"pair_id":"coverage-uncertainty","title":"Broad coverage or uncertainty","items":[{"id":"a","text":"The matrix exercises all 12 planned ordinary input groups and reports pass counts."},{"id":"b","text":"Reviewers disagree sharply on the five ambiguous cases and record their reasons."},{"id":"c","text":"A one-line summary claims broad coverage and zero uncertainty without samples."}],"cases":[{"case_id":"coverage","goal":"Find evidence of coverage across the planned ordinary groups.","gold_id":"a","reason":"The matrix checks every planned ordinary group.","ranked_ids":["a","b","c"],"chosen_id":"a","correct":true,"confidence":null},{"case_id":"uncertainty","goal":"Find where annotator uncertainty is greatest before using the labels.","gold_id":"b","reason":"Recorded reviewer disagreement identifies the ambiguous cases.","ranked_ids":["b","a","c"],"chosen_id":"b","correct":true,"confidence":null}],"switch_success":true},{"pair_id":"baseline-shift","title":"Typical accuracy or changed conditions","items":[{"id":"a","text":"On the ordinary sample, 92 of 100 ranked choices match the provisional labels."},{"id":"b","text":"After the vocabulary changes, only 8 of 20 ranked choices match the labels."},{"id":"c","text":"A poster says HIGH ACCURACY UNDER SHIFT and repeats the headline several times."}],"cases":[{"case_id":"typical-accuracy","goal":"Report performance on the ordinary sample only.","gold_id":"a","reason":"The ordinary sample gives an explicit numerator and denominator.","ranked_ids":["a","b","c"],"chosen_id":"a","correct":true,"confidence":null},{"case_id":"shift-failure","goal":"Find the strongest evidence of a failure under changed vocabulary.","gold_id":"b","reason":"The changed-vocabulary result records a substantial performance drop.","ranked_ids":["b","a","c"],"chosen_id":"b","correct":true,"confidence":null}],"switch_success":true},{"pair_id":"sample-integrity","title":"Larger sample or clean split","items":[{"id":"a","text":"A new batch adds 500 examples, but duplicates 40 items from the training set."},{"id":"b","text":"A smaller batch of 80 examples is family-disjoint from training and has stable identifiers."},{"id":"c","text":"The project note repeats large sample and clean split but lists no identifiers."}],"cases":[{"case_id":"sample-size","goal":"Find the batch with more examples for a non-confirmatory load test.","gold_id":"a","reason":"The larger batch contains 500 examples; its duplicates limit other uses.","ranked_ids":["a","b","c"],"chosen_id":"a","correct":true,"confidence":null},{"case_id":"clean-split","goal":"Choose a clean split for a confirmation test with no training-family overlap.","gold_id":"b","reason":"The smaller batch is explicitly family-disjoint.","ranked_ids":["a","b","c"],"chosen_id":"a","correct":false,"confidence":null}],"switch_success":false},{"pair_id":"action-reversibility","title":"Immediate progress or easy reversal","items":[{"id":"a","text":"Applying the proposed edit now completes the local prototype in one minute; undoing it requires restoring state."},{"id":"b","text":"A dry run on an isolated copy takes ten minutes and leaves the original unchanged."},{"id":"c","text":"The meeting note calls the edit both immediate and perfectly reversible but supplies no procedure."}],"cases":[{"case_id":"immediate","goal":"Complete the disposable local prototype immediately.","gold_id":"a","reason":"Applying the edit directly has the shorter stated path.","ranked_ids":["a","b","c"],"chosen_id":"a","correct":true,"confidence":null},{"case_id":"reversible","goal":"Test the idea while making reversal trivial and preserving the original.","gold_id":"b","reason":"The isolated dry run leaves the original untouched.","ranked_ids":["b","a","c"],"chosen_id":"b","correct":true,"confidence":null}],"switch_success":true}]},"baseline":{"model_name":"Goal-word overlap (diagnostic baseline)","pairs_correct":2,"pairs_total":8,"switch_success_rate":0.25,"pairs":[{"pair_id":"replication-safety","title":"Replication or possible harm","items":[{"id":"a","text":"A press summary calls the original result a major breakthrough but supplies no methods."},{"id":"b","text":"Three independent teams repeated the protocol and obtained a smaller, consistent effect."},{"id":"c","text":"The experiment log records a recurring unexpected failure under one operating condition."}],"cases":[{"case_id":"replication","goal":"Prioritize evidence that the reported effect replicates independently.","gold_id":"b","reason":"Independent repeat attempts directly address replication.","ranked_ids":["b","a","c"],"chosen_id":"b","correct":true,"confidence":null},{"case_id":"possible-harm","goal":"Prioritize the strongest signal of possible harm before another trial.","gold_id":"c","reason":"The recurring failure is the direct warning signal.","ranked_ids":["a","b","c"],"chosen_id":"a","correct":false,"confidence":null}],"switch_success":false},{"pair_id":"speed-reproduction","title":"Fastest result or reproducible result","items":[{"id":"a","text":"A cached run finishes in two minutes but does not record its random seed or software version."},{"id":"b","text":"A pinned environment saves the full input manifest and seed, then finishes in 20 minutes."},{"id":"c","text":"A slide deck asserts that the work is reproducible and fast without showing a run."}],"cases":[{"case_id":"speed","goal":"Get the fastest rough result for a disposable internal check.","gold_id":"a","reason":"The cached run has the shortest stated turnaround for a disposable check.","ranked_ids":["a","b","c"],"chosen_id":"a","correct":true,"confidence":null},{"case_id":"reproduction","goal":"Select the run another team can reproduce exactly next week.","gold_id":"b","reason":"Pinned inputs, version, and seed permit a repeatable run.","ranked_ids":["a","c","b"],"chosen_id":"a","correct":false,"confidence":null}],"switch_success":false},{"pair_id":"freshness-provenance","title":"Latest signal or source identity","items":[{"id":"a","text":"A new observation arrived this morning with a timestamp but no origin record."},{"id":"b","text":"An older observation has a signed source manifest, collection method, and chain of custody."},{"id":"c","text":"A search snippet says the latest verified source is authoritative; its link is broken."}],"cases":[{"case_id":"freshness","goal":"Identify the freshest signal that might warrant a follow-up, without claiming it is verified.","gold_id":"a","reason":"The timestamp makes it the newest observation; its origin remains uncertain.","ranked_ids":["c","a","b"],"chosen_id":"c","correct":false,"confidence":null},{"case_id":"provenance","goal":"Choose the observation with independently checkable provenance for a formal record.","gold_id":"b","reason":"The source manifest and method provide checkable provenance.","ranked_ids":["a","b","c"],"chosen_id":"a","correct":false,"confidence":null}],"switch_success":false},{"pair_id":"restore-diagnose","title":"Restore service or diagnose cause","items":[{"id":"a","text":"A tested rollback returns the service to its previous state in five minutes."},{"id":"b","text":"Trace samples isolate the first failing call after a dependency changed."},{"id":"c","text":"A dashboard banner says RESTORE and ROOT CAUSE in large letters but contains no measurement."}],"cases":[{"case_id":"restore","goal":"Restore the synthetic test service as quickly as the evidence permits.","gold_id":"a","reason":"The tested rollback directly restores the service.","ranked_ids":["a","c","b"],"chosen_id":"a","correct":true,"confidence":null},{"case_id":"diagnose","goal":"Identify evidence for the root cause before changing the dependency.","gold_id":"b","reason":"The traces point to the first failing call after the change.","ranked_ids":["c","b","a"],"chosen_id":"c","correct":false,"confidence":null}],"switch_success":false},{"pair_id":"coverage-uncertainty","title":"Broad coverage or uncertainty","items":[{"id":"a","text":"The matrix exercises all 12 planned ordinary input groups and reports pass counts."},{"id":"b","text":"Reviewers disagree sharply on the five ambiguous cases and record their reasons."},{"id":"c","text":"A one-line summary claims broad coverage and zero uncertainty without samples."}],"cases":[{"case_id":"coverage","goal":"Find evidence of coverage across the planned ordinary groups.","gold_id":"a","reason":"The matrix checks every planned ordinary group.","ranked_ids":["a","c","b"],"chosen_id":"a","correct":true,"confidence":null},{"case_id":"uncertainty","goal":"Find where annotator uncertainty is greatest before using the labels.","gold_id":"b","reason":"Recorded reviewer disagreement identifies the ambiguous cases.","ranked_ids":["c","a","b"],"chosen_id":"c","correct":false,"confidence":null}],"switch_success":false},{"pair_id":"baseline-shift","title":"Typical accuracy or changed conditions","items":[{"id":"a","text":"On the ordinary sample, 92 of 100 ranked choices match the provisional labels."},{"id":"b","text":"After the vocabulary changes, only 8 of 20 ranked choices match the labels."},{"id":"c","text":"A poster says HIGH ACCURACY UNDER SHIFT and repeats the headline several times."}],"cases":[{"case_id":"typical-accuracy","goal":"Report performance on the ordinary sample only.","gold_id":"a","reason":"The ordinary sample gives an explicit numerator and denominator.","ranked_ids":["a","b","c"],"chosen_id":"a","correct":true,"confidence":null},{"case_id":"shift-failure","goal":"Find the strongest evidence of a failure under changed vocabulary.","gold_id":"b","reason":"The changed-vocabulary result records a substantial performance drop.","ranked_ids":["b","c","a"],"chosen_id":"b","correct":true,"confidence":null}],"switch_success":true},{"pair_id":"sample-integrity","title":"Larger sample or clean split","items":[{"id":"a","text":"A new batch adds 500 examples, but duplicates 40 items from the training set."},{"id":"b","text":"A smaller batch of 80 examples is family-disjoint from training and has stable identifiers."},{"id":"c","text":"The project note repeats large sample and clean split but lists no identifiers."}],"cases":[{"case_id":"sample-size","goal":"Find the batch with more examples for a non-confirmatory load test.","gold_id":"a","reason":"The larger batch contains 500 examples; its duplicates limit other uses.","ranked_ids":["a","b","c"],"chosen_id":"a","correct":true,"confidence":null},{"case_id":"clean-split","goal":"Choose a clean split for a confirmation test with no training-family overlap.","gold_id":"b","reason":"The smaller batch is explicitly family-disjoint.","ranked_ids":["c","b","a"],"chosen_id":"c","correct":false,"confidence":null}],"switch_success":false},{"pair_id":"action-reversibility","title":"Immediate progress or easy reversal","items":[{"id":"a","text":"Applying the proposed edit now completes the local prototype in one minute; undoing it requires restoring state."},{"id":"b","text":"A dry run on an isolated copy takes ten minutes and leaves the original unchanged."},{"id":"c","text":"The meeting note calls the edit both immediate and perfectly reversible but supplies no procedure."}],"cases":[{"case_id":"immediate","goal":"Complete the disposable local prototype immediately.","gold_id":"a","reason":"Applying the edit directly has the shorter stated path.","ranked_ids":["a","b","c"],"chosen_id":"a","correct":true,"confidence":null},{"case_id":"reversible","goal":"Test the idea while making reversal trivial and preserving the original.","gold_id":"b","reason":"The isolated dry run leaves the original untouched.","ranked_ids":["b","a","c"],"chosen_id":"b","correct":true,"confidence":null}],"switch_success":true}]}}</script>
+  <script>
+    const report = JSON.parse(document.getElementById('report-data').textContent);
+    const el = (tag, cls, value) => {
+      const n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (value !== undefined) n.textContent = String(value);
+      return n;
+    };
+    function metric(label, value, detail, accent) {
+      const card = el('article', 'card' + (accent ? ' accent' : ''));
+      card.append(el('div', 'label', label), el('div', 'number', value), el('div', 'muted small', detail));
+      document.getElementById('metrics').append(card);
+    }
+    const candidate = report.candidate, baseline = report.baseline;
+    metric('Submitted ranking', `${candidate.pairs_correct} / ${candidate.pairs_total}`, candidate.model_name, true);
+    metric('Goal-word baseline', `${baseline.pairs_correct} / ${baseline.pairs_total}`, baseline.model_name);
+    metric('Difference', `${Math.round(100 * (candidate.switch_success_rate - baseline.switch_success_rate)) > 0 ? '+' : ''}${Math.round(100 * (candidate.switch_success_rate - baseline.switch_success_rate))} pp`, 'Public demo pairs; no confidence interval');
+    document.getElementById('count').textContent = `· ${candidate.pairs_total} pairs`;
+    for (const pair of candidate.pairs) {
+      const bpair = baseline.pairs.find(p => p.pair_id === pair.pair_id);
+      const details = el('details', 'pair');
+      details.dataset.result = pair.switch_success ? 'pass' : 'fail';
+      if (!pair.switch_success) details.open = true;
+      const summary = el('summary');
+      const heading = el('div');
+      heading.append(el('div', 'eyebrow', pair.pair_id), el('span', 'pair-title', pair.title));
+      summary.append(heading, el('span', 'badge ' + (pair.switch_success ? 'pass' : 'fail'), pair.switch_success ? 'BOTH RIGHT' : 'MISSED SWITCH'));
+      const body = el('div', 'pair-body');
+      const grid = el('div', 'context-grid');
+      for (const c of pair.cases) {
+        const base = bpair.cases.find(x => x.case_id === c.case_id);
+        const box = el('div', 'context');
+        box.append(el('div', 'label', c.case_id), el('h3', '', c.goal));
+        for (const [label, id, cls] of [['Submitted', c.chosen_id, c.correct ? 'expected' : 'miss'], ['Goal-word baseline', base.chosen_id, base.correct ? 'expected' : 'miss'], ['Expected', c.gold_id, 'expected']]) {
+          const row = el('div', 'result-row');
+          row.append(el('span', 'muted', label), el('strong', cls, id));
+          box.append(row);
+        }
+        box.append(el('p', 'muted small', c.reason));
+        grid.append(box);
+      }
+      const list = el('ol', 'evidence');
+      for (const item of pair.items) {
+        const li = el('li');
+        li.append(el('b', '', `${item.id}: `), document.createTextNode(item.text));
+        list.append(li);
+      }
+      body.append(grid, list);
+      details.append(summary, body);
+      document.getElementById('pairs').append(details);
+    }
+    document.getElementById('meta').textContent = `${report.suite_name} · Suite SHA-256: ${report.suite_sha256} · ${report.method}`;
+    for (const button of document.querySelectorAll('[data-filter]')) {
+      button.addEventListener('click', () => {
+        for (const b of document.querySelectorAll('[data-filter]')) b.setAttribute('aria-pressed', String(b === button));
+        for (const pair of document.querySelectorAll('.pair')) pair.hidden = button.dataset.filter !== 'all' && pair.dataset.result !== button.dataset.filter;
+      });
+    }
+    document.getElementById('print').addEventListener('click', () => {
+      for (const pair of document.querySelectorAll('.pair')) { pair.hidden = false; pair.open = true; }
+      window.print();
+    });
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Eudaimon — Architectural Authority Index
 
-**Updated:** 2026-11-19
+**Updated:** 2026-11-26
 
 ## Authority order
 
@@ -26,6 +26,10 @@
 | ID | Effective date | Status | Normative scope | Source |
 | --- | --- | --- | --- | --- |
 | [A-001](amendments/A-001-guard-before-reset.md) | 2026-11-19 | Approved conceptually; harness implementation pending | Run guard before output-driven reset/discard in conceptual AutoResearch-W proposer workflow | Owner authorization, issue #4, draft PR #2 |
+
+## Research sequencing decisions
+
+- [EUD-ADR-001 — Measurement Before Optimization](../docs/adr-001-measurement-before-optimization.md): owner-authorized research direction; A1.5 campaign-specific mechanisms deferred and unverified, contextual relevance measurement prioritized. This is a research sequencing record, not a normative conceptual amendment or campaign authorization. Canonical source files and approved amendment precedence are unchanged.
 
 ## Security and implementation status
 
